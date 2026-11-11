@@ -1203,6 +1203,52 @@ async function open(b, w = 1500, h = 950, api = {}, clock = null) {
     check("a model that is not installed shows its size and command", /not installed · [\d.]+ GB · bin\/ollama\.sh install /
       .test((await p.textContent("#aiPanel")).replace(/\s+/g, " ")));
     await shot(p, "ai_picker_laptop32");
+    // downloads from the page (owner 2026-11-10: No AI first, the models downloaded from the GUI): with the download helper
+    // running, a model that is not installed has a Download button; its progress, Cancel, a failure and the finish
+    {
+      const st = install => stopped({ ai: { mode: "none", live: "gemma4mtp:31b-n3-text", reviewer: null, task: null, last: {}, scope_default: "b", install } });
+      info = { ...fx.ai.f16, install: { helper: true, state: null } };
+      await p.feed([st({ helper: true, state: null })], 100);
+      await p.evaluate(() => { aiPick = null; return loadAI(); }); await sleep(300);
+      const e4 = async () => (await p.$$eval("#aiPanel label.r", es => es.map(e => e.textContent.replace(/\s+/g, " ")))).find(x => /Gemma 4 E4B/.test(x)) || "";
+      const btn = await p.$('#aiPanel [data-ai-dl="gemma4mtp:e4b-n4"]');
+      check("download: a model that is not installed has a Download button with its size, no command", !!btn
+        && (await btn.textContent()) === "Download (6.3 GB)" && !/ollama\.sh install gemma4mtp:e4b/.test(await e4()), (await e4()).slice(0, 200));
+      await shot(p, "download_button");
+      const n0 = p.posts.length;
+      await btn.click(); await sleep(250);
+      const post = p.posts.slice(n0).find(x => x[0] === "ai/install");
+      check("download: Download posts the model, and the row says the download is starting", !!post && JSON.parse(post[1]).model === "gemma4mtp:e4b-n4"
+        && /Starting the download/.test(await e4()) && !!(await p.$("#aiPanel [data-ai-dl-cancel]")), JSON.stringify(p.posts.slice(n0)));
+      await p.feed([st({ helper: true, state: "running", tag: "gemma4mtp:e4b-n4", error: "", phase: "download", done: 2.1e9, total: 6.3e9 })], 200);
+      const others = await p.$$eval("#aiPanel [data-ai-dl]", es => es.map(e => e.disabled));
+      check("download: its progress in the row (GB and %), other Download buttons wait", /Downloading: 2\.1 of 6\.3 GB \(33%\)/.test(await e4())
+        && others.every(Boolean), JSON.stringify([await e4(), others]));
+      await shot(p, "download_progress");
+      await p.click("#aiPanel [data-ai-toggle]"); await sleep(150);       // the panel folded: the bar still shows the download
+      check("download: the folded AI bar shows the download", /Gemma 4 E4B: Downloading: 2\.1 of 6\.3 GB/.test((await p.textContent("#aiPanel .sum")).replace(/\s+/g, " ")));
+      await p.click("#aiPanel [data-ai-toggle]"); await sleep(150);
+      const n1 = p.posts.length;
+      await p.click("#aiPanel [data-ai-dl-cancel]"); await sleep(200);
+      check("download: Cancel posts install_cancel", p.posts.slice(n1).some(x => x[0] === "ai/install_cancel"), JSON.stringify(p.posts.slice(n1)));
+      await p.feed([st({ helper: true, state: "failed", tag: "gemma4mtp:e4b-n4", error: "pulling gemma4:e4b-it-qat failed: <b>no network</b>" })], 300);
+      check("download: a failure says why beside the button (as text), and Download is offered again", /no network/.test(await e4())
+        && !(await p.$("#aiPanel [data-dl-error] b")) && !!(await p.$('#aiPanel [data-ai-dl="gemma4mtp:e4b-n4"]:not([disabled])')), (await e4()).slice(0, 240));
+      await p.feed([st({ helper: true, state: "running", tag: "gemma4mtp:e4b-n4", error: "", phase: "build", done: 6.3e9, total: 6.3e9 })], 200);
+      check("download: the last step says it is setting the model up, with no Cancel (the build cannot be stopped)", /Setting it up/.test(await e4())
+        && !(await p.$("#aiPanel [data-ai-dl-cancel]")));
+      info = { ...fx.ai.f16, install: { helper: true, state: "done", tag: "gemma4mtp:e4b-n4" },
+               rows: fx.ai.f16.rows.map(r => r.id === "gemma4mtp:e4b-n4" ? { ...r, installed: true, install: null } : r) };
+      await p.feed([st({ helper: true, state: "done", tag: "gemma4mtp:e4b-n4", error: "" })], 600);
+      check("download: when done, the note says so and the row offers Check Speed", /Gemma 4 E4B is downloaded: Check Speed/.test(await p.textContent("#aiPanel"))
+        && /Check Speed/.test(await e4()) && !(await p.$('#aiPanel [data-ai-dl="gemma4mtp:e4b-n4"]')), (await e4()).slice(0, 200));
+      await shot(p, "download_done");
+      info = { ...fx.ai.f16, install: { helper: false, state: null } };
+      await p.feed([st({ helper: false, state: null })], 100);
+      await p.evaluate(() => { aiPick = null; return loadAI(); }); await sleep(300);
+      check("download: without the helper (--no-llm) the row shows the command instead", /not installed · 6\.3 GB · bin\/ollama\.sh install gemma4mtp:e4b-n4/.test(await e4())
+        && !(await p.$("#aiPanel [data-ai-dl]")) && !p.errs.length, p.errs.join("; "));
+    }
     // ramfit (2026-11-08): a 12 GB card with 16 GB of RAM keeps its GPU: the 12B + MTP (whole on the card, ~1 GB of RAM)
     info = fx.ai.nv12r16;
     await p.evaluate(() => { aiPick = null; return loadAI(); }); await sleep(300);

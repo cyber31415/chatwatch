@@ -6,7 +6,8 @@
 #   --log      keep a session log of this run in data/sessions/ (raw chat lines with usernames, and the reads);
 #              off by default; logs older than CW_SESSION_KEEP_DAYS (14) are deleted at start
 # Then open http://127.0.0.1:8765 (or your CW_PORT), type a channel and press Start. Ctrl+C stops the dashboard; the
-# AI container (cw-ollama) keeps its model in memory for the next start: `bin/ollama.sh stop` frees it.
+# AI container (cw-ollama) keeps its model in memory for the next start: `bin/ollama.sh stop` frees it (on Windows, WSL2,
+# Ctrl+C stops it too, so the memory goes back to Windows).
 # One dashboard at a time: the server takes data/state/dashboard.lock itself and removes it on exit; a lock left by
 # this machine with no cw-live container running is stale and is removed here (CW_FORCE=1 starts anyway).
 set -euo pipefail
@@ -98,7 +99,14 @@ detect_specs() {
   [[ "$CW_SPEC_CORES" =~ ^[1-9] ]] || CW_SPEC_CORES="$CW_SPEC_THREADS"
   CW_SPEC_GPU_NAME="$(printf '%s' "$CW_SPEC_GPU_NAME" | tr -cd 'A-Za-z0-9 ._()/+-' | cut -c1-80)"
   [[ "$CW_SPEC_GPU_VENDOR" == none ]] && CW_SPEC_GPU_DISPLAY=0
-  export CW_SPEC_GPU_VENDOR CW_SPEC_GPU_NAME CW_SPEC_VRAM_MB CW_SPEC_RAM_MB CW_SPEC_THREADS CW_SPEC_CORES CW_SPEC_GPU_DISPLAY
+  # Linux inside Windows (WSL2): the Windows desktop is outside this Linux's memory (picker.RAM_HEADROOM_WSL_GB), and a GPU
+  # seen here also draws the Windows desktop (no screen outputs to read)
+  CW_SPEC_WSL=0
+  if grep -qi microsoft /proc/sys/kernel/osrelease 2>/dev/null; then
+    CW_SPEC_WSL=1
+    [[ "$CW_SPEC_GPU_VENDOR" != none ]] && CW_SPEC_GPU_DISPLAY=1
+  fi
+  export CW_SPEC_GPU_VENDOR CW_SPEC_GPU_NAME CW_SPEC_VRAM_MB CW_SPEC_RAM_MB CW_SPEC_THREADS CW_SPEC_CORES CW_SPEC_GPU_DISPLAY CW_SPEC_WSL
 }
 # 1 when the DRM card ($1, e.g. card1) has a connected screen output, or when that cannot be told (none listed): its
 # desktop then keeps some GPU memory (picker.DESKTOP_RESERVE_GB); 0 when it lists outputs and none is connected
@@ -168,6 +176,20 @@ measure_avail() {
 detect_specs
 measure_avail
 echo "[live] this machine: GPU ${CW_SPEC_GPU_VENDOR} ${CW_SPEC_GPU_NAME} (${CW_SPEC_VRAM_MB} MB, ${CW_SPEC_VRAM_AVAIL_MB} MB available for models), RAM ${CW_SPEC_RAM_MB} MB (${CW_SPEC_RAM_AVAIL_MB} MB available), ${CW_SPEC_CORES} cores / ${CW_SPEC_THREADS} threads"
+if [[ "$CW_SPEC_WSL" == 1 ]]; then             # Windows (WSL2): the two things that make it slow or keep the AI out
+  case "$HERE" in
+    /mnt/[a-z]/*) echo "[live] note: this folder is on a Windows drive ($HERE): models load slowly from there; clone chatwatch into your Linux home (cd ~) instead" ;;
+  esac
+  if [[ "$CW_SPEC_RAM_MB" =~ ^[0-9]+$ ]] && (( CW_SPEC_RAM_MB < 11000 )); then
+    echo "[live] note: WSL gives Linux only ${CW_SPEC_RAM_MB} MB, too little for the AI models: raise it in .wslconfig (README, Windows)"
+  fi
+fi
+# netavark (podman's network) 1.4, Ubuntu 24.04's, sets up cw-net with iptables but does not depend on it; WSL's Ubuntu
+# lacks it (first Windows test, 2026-11-10: "netavark: No such file or directory (os error 2)")
+if ! command -v iptables >/dev/null 2>&1 && [[ ! -x /usr/sbin/iptables && ! -x /sbin/iptables ]] \
+   && [[ "$(podman info --format '{{.Host.NetworkBackend}}' 2>/dev/null)" == netavark ]]; then
+  echo "[live] note: iptables is not installed; if starting fails with 'netavark: No such file or directory', install it (Ubuntu: sudo apt install iptables)"
+fi
 # Room for the rest of the machine (owner 2026-11-10: "the tool should run while other things are running"): the AI's
 # CPU part uses the physical cores less CW_KEEP_CORES (default 2; 0: every core, Ollama's own), and on a card that
 # drives a screen a model that fills the card leaves CW_VRAM_RESERVE_GB (default 1.5) free (picker.DESKTOP_RESERVE_GB).
@@ -251,7 +273,37 @@ start_tail() {
   setsid bash "$HERE/bin/ollama_log_tail.sh" "$OLOG" </dev/null >/dev/null 2>&1 &
   TAIL_PGID=$!
   echo "$TAIL_PGID" > "$TPID"
-  trap stop_tail EXIT
+  trap 'stop_tail; stop_helper; stop_ai_wsl' EXIT
+}
+# Windows (WSL2): Ctrl+C also stops the AI container, so the memory its model holds goes back to Windows (owner
+# 2026-11-10: VmmemWSL still held 5.8 GB after Ctrl+C); on Linux it stays loaded for the next start. CW_KEEP_AI=1 keeps
+# it on Windows too
+stop_ai_wsl() {
+  if [[ "${CW_SPEC_WSL:-0}" == 1 && "${CW_KEEP_AI:-}" != 1 ]]; then
+    bash "$HERE/bin/ollama.sh" stop >/dev/null 2>&1 || true
+    echo "[live] stopped the AI container; to give all of WSL's memory back to Windows now: wsl --shutdown (in PowerShell)"
+  fi
+}
+# ---- the page's model downloads (owner 2026-11-10: No AI is the starting point, models are downloaded from the page):
+# bin/install_helper.sh runs `bin/ollama.sh install` for the page (src/chatwatch/install.py), on the host beside the
+# dashboard, in its own process group, stopped on exit with any download in progress; one per folder (one left by a
+# killed run is stopped first)
+IDIR="$HERE/data/state/install" IPID="$HERE/data/state/install/helper.pid"
+HELPER_PGID=""
+stop_helper() { if [[ -n "$HELPER_PGID" ]]; then kill -- "-$HELPER_PGID" 2>/dev/null || true; fi; rm -f "$IPID"; HELPER_PGID=""; }
+start_helper() {
+  mkdir -p "$IDIR"
+  if [[ -f "$IPID" ]]; then
+    read -r old < "$IPID" || true
+    if [[ "${old:-}" =~ ^[0-9]+$ ]] && ps -o args= -p "$old" 2>/dev/null | grep -q "install_helper.sh"; then
+      kill -- "-$old" 2>/dev/null || true
+    fi
+    rm -f "$IPID"
+  fi
+  rm -f "$IDIR/alive"
+  setsid bash "$HERE/bin/install_helper.sh" </dev/null >/dev/null 2>&1 &
+  HELPER_PGID=$!
+  echo "$HELPER_PGID" > "$IPID"
 }
 
 if [[ -z "$NO_LLM" ]]; then
@@ -260,6 +312,7 @@ if [[ -z "$NO_LLM" ]]; then
     for _ in $(seq 1 30); do curl -s -m 2 -o /dev/null "127.0.0.1:${CW_OLLAMA_PORT:-11435}/api/version" && break; sleep 1; done
   fi
   start_tail
+  start_helper
   if [[ "$SKIP_WARM" == 2 ]]; then
     echo "[live] $CW_LLM_MODEL: its GPU layer cap is estimated from the free VRAM by the server; it loads on the first call"
   elif [[ "$SKIP_WARM" == 1 ]]; then
@@ -268,7 +321,7 @@ if [[ -z "$NO_LLM" ]]; then
     echo "[live] loading $CW_LLM_MODEL into VRAM (about a minute the first time)..."
     bash "$HERE/bin/ollama.sh" warm "$CW_LLM_MODEL" >/dev/null || echo "[live] the warm-up did not finish; the first call loads it"
   elif [[ -n "$FIRST" ]]; then
-    echo "[live] no AI chosen yet on this machine: pick one on the page (it lists what fits; Check Speed measures it)"
+    echo "[live] starting with No AI: the page lists the AI setups that fit this machine and downloads the one you pick"
   else
     echo "[live] AI: off (chosen on the page); the page can turn it on"
   fi

@@ -117,7 +117,9 @@ def specs_from_env(env=None):
             "ollama_gpu": (env.get("CW_GPU") or env.get("CW_SPEC_OLLAMA_GPU") or None),
             # the card also drives a screen (./start.sh: nvidia-smi display_active; an AMD card's connected outputs;
             # unknown counts as yes there): its desktop keeps DESKTOP_RESERVE_GB (owner 2026-11-10)
-            "gpu_display": {"1": True, "0": False}.get((env.get("CW_SPEC_GPU_DISPLAY") or "").strip())}
+            "gpu_display": {"1": True, "0": False}.get((env.get("CW_SPEC_GPU_DISPLAY") or "").strip()),
+            # Linux inside Windows (WSL2): ./start.sh reads it from the kernel name; the desktop is outside its memory
+            "wsl": (env.get("CW_SPEC_WSL") or "").strip() == "1"}
 
 
 def vram_class(mb, vendor=None):
@@ -496,6 +498,9 @@ RAM_BUF_GB = 1.0          # the runner's own buffers beside the CPU layers. Chec
                           # 12 GB is estimated at 10.1 + 1.0 = 11.1 GB; its runner held 9.5 GB (2026-11-08), so this errs high
 RAM_HEADROOM_GB = 4.0     # at least this, or 10% of the RAM, kept free beside the model: the dashboard itself starts
 RAM_HEADROOM_SHARE = 0.10  # after the read (its ML tier), and the desktop and browser grow
+# Windows (WSL2, first Windows test 2026-11-10): the desktop and the browser run outside the Linux VM, whose memory cap
+# (.wslconfig) already leaves them room, so inside it only the dashboard itself is kept free beside the model
+RAM_HEADROOM_WSL_GB = 2.0
 
 
 def ram_avail_gb(specs):
@@ -519,7 +524,7 @@ def memory(specs):
     return {"vram": v, "vram_shown": None if v is None else _floor1(v), "vram_cold": not held, "reserve_gb": reserve,
             "vram_total": round(s["vram_mb"] / 1024, 1) if s.get("vram_mb") else None,
             "ram": r, "ram_shown": None if r is None or assumed else _floor1(r), "ram_assumed": assumed,
-            "ram_total": total}
+            "ram_total": total, "wsl": bool(s.get("wsl"))}
 
 
 def _sizes(tag):
@@ -558,7 +563,8 @@ def ram_check(need, mem):
     a = (mem or {}).get("ram")
     if need is None or a is None:
         return None
-    h = round(max(RAM_HEADROOM_GB, RAM_HEADROOM_SHARE * ((mem or {}).get("ram_total") or 0)), 1)
+    h = (RAM_HEADROOM_WSL_GB if (mem or {}).get("wsl")
+         else round(max(RAM_HEADROOM_GB, RAM_HEADROOM_SHARE * ((mem or {}).get("ram_total") or 0)), 1))
     state = "short" if a < need + h else "tight" if a < need + 2 * h else "ok"
     return {"need_gb": need, "headroom_gb": h, "avail_gb": _floor1(a), "state": state,
             "assumed": bool((mem or {}).get("ram_assumed"))}

@@ -1795,6 +1795,9 @@ def make_app(hub, port=8765):
     async def ai_cancel(request):
         return web.json_response({"ok": True, "cancelling": hub.cancel_ai_task()})
 
+    async def ai_install_cancel(request):
+        return web.json_response({"ok": True, "cancelling": hub.cancel_install()})
+
     async def review_estimate(request):
         if hub.ai.get("mode") != "hybrid":
             return web.json_response({"error": "not a hybrid setup"}, status=409)
@@ -1824,6 +1827,8 @@ def make_app(hub, port=8765):
     app.router.add_post("/api/ai/chatrate", _ai_answer(hub.start_chatrate))
     app.router.add_post("/api/ai/override", ai_override)
     app.router.add_post("/api/ai/cancel", ai_cancel)
+    app.router.add_post("/api/ai/install", _ai_answer(hub.start_install))      # a model download (install.py)
+    app.router.add_post("/api/ai/install_cancel", ai_install_cancel)
     app.router.add_post("/api/review", _ai_answer(hub.start_review))
     app.router.add_get("/api/review", review_estimate)
     app.router.add_static("/static", WEB)

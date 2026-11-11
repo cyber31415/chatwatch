@@ -24,7 +24,7 @@ import random
 import time
 import urllib.error
 
-from . import llm, picker
+from . import install, llm, picker
 
 # Owner decision 2026-11-07: the review covers the watchlist chatters with new content AND every other chatter with a
 # toxic line not yet reviewed (the study's mode b, 114.8% of the 20b; mode a, the watchlist alone: 109.1%). The page's
@@ -78,6 +78,8 @@ class AIMixin:
         self.rate_task = None           # the chat count (no GPU: not an AI job)
         self._rate_job = None
         self._ai_cancel = False
+        self._dl_prog = install.Progress()   # the page's model download (install.py, bin/install_helper.sh)
+        self._dl_pending = None              # (tag, time) of a request the helper has not taken yet
         self.ollama_log = picker.OllamaLog(ollama_log if ollama_log is not None else os.environ.get("CW_OLLAMA_LOG"))
         self._ring = {}                 # channel -> deque[(seq, "display: text")]
         self._ring_seq = {}             # channel -> its last line number (gapless per channel)
@@ -211,11 +213,38 @@ class AIMixin:
         out = {"mode": self.ai["mode"], "live": self.ai["live"], "reviewer": self.ai["reviewer"],
                "task": self.ai_task, "rate_task": self.rate_task,
                "last": {k: v for k, v in self.ai_last.items() if k in ("review", "select")},
-               "scope_default": REVIEW_SCOPE_DEFAULT, "blocked": getattr(self, "ai_blocked", None)}
+               "scope_default": REVIEW_SCOPE_DEFAULT, "blocked": getattr(self, "ai_blocked", None),
+               "install": self.install_state()}
         if self.ai["mode"] == "hybrid" and self.review_q is not None:
             out["review"] = self.review_summary()
             out["prefetch"] = self.prefetch_summary()
         return out
+
+    # ------------------------------------------------------------------ model downloads (install.py)
+    def install_state(self):
+        try:
+            st = install.state(self._dl_prog, self._dl_pending)
+        except Exception as e:                     # never let a bad file break the status message
+            return {"helper": False, "state": None, "error": f"{type(e).__name__}: {e}"[:200]}
+        if self._dl_pending and st.get("state") != "starting":
+            self._dl_pending = None
+        return st
+
+    def start_install(self, body):
+        """POST /api/ai/install {"model": tag}: any time (a download does not touch the model in use)."""
+        tag = (body or {}).get("model")
+        if self._dl_pending and time.time() - self._dl_pending[1] < install.PENDING_S:
+            raise Busy("wait: another download is starting")
+        try:
+            got = install.request(tag)
+        except install.Refused as e:
+            raise Busy(str(e))
+        self._dl_pending = (tag, time.time())
+        return got
+
+    def cancel_install(self):
+        self._dl_pending = None
+        return install.cancel()
 
     def _installed(self):
         """The cw-ollama tags. While Ollama is slow to answer (it lists its models from the shared store, which a 20 GB
@@ -256,7 +285,7 @@ class AIMixin:
                 "last": self.ai_last, "choices": {"vram": picker.VRAM_CHOICES, "ram": picker.RAM_CHOICES},
                 "llm_enabled": self.review_q is not None or bool(self.llm_enabled),
                 "scope_default": REVIEW_SCOPE_DEFAULT,
-                "hybrid_effective": cat.get("hybrid_effective")}
+                "hybrid_effective": cat.get("hybrid_effective"), "install": self.install_state()}
 
     def save_override(self, ov):
         clean = {k: v for k, v in (ov or {}).items()

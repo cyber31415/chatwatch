@@ -463,19 +463,20 @@
    "min_ram": "16",
    "tiers": {
     "F16": {
-     "keepup": 20,
+     "keepup": 10,
      "keepup_plus": false,
-     "keepup_source": "development study (not published)",
-     "person_s": 8.03,
-     "a": 11.524,
-     "b": 3.4292,
-     "window12_s": 52.7,
-     "run": "gemmae4b_final_mtp4:F16",
+     "keepup_source": "measured: Intel i7-13700H laptop, no GPU, 16 GB, Windows 11 (WSL2), Check Speed 2026-11-10",
+     "build_note": "measured on an Intel i7-13700H laptop under Windows (WSL2)",
+     "person_s": 12.61,
+     "a": 34.564,
+     "b": 5.0114,
+     "window12_s": 94.7,
+     "run": "Windows laptop Check Speed 2026-11-10 (the development run gemmae4b_final_mtp4:F16 read 20 on a desktop held to 8 cores)",
      "num_gpu": null,
      "num_gpu_known": false,
-     "reread_all": 5,
-     "reread_most": 15,
-     "reread_source": "development study (not published)"
+     "reread_all": 0,
+     "reread_most": 5,
+     "reread_source": "measured: the same Check Speed"
     },
     "F32": {
      "keepup": 20,

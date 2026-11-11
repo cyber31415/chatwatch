@@ -9,6 +9,7 @@
 #                                   models/drafts/Modelfile.<size>.n<N>; its text-only twin (gemma4mtp:<size>-n<N>-text:
 #                                   the same weights and drafter, no vision projector) is created from the parent's own
 #                                   weights file
+#                                   (the page's Download button runs this through bin/install_helper.sh)
 #   bin/ollama.sh pull <model>      a plain `ollama pull`
 #   bin/ollama.sh warm [model]      load a model into memory now
 #   bin/ollama.sh version | stop
@@ -51,9 +52,27 @@ case "$GPU" in
   *) echo "CW_GPU must be nvidia, amd or cpu" >&2; exit 1 ;;
 esac
 
+# The page's downloads (bin/install_helper.sh sets CW_INSTALL_PROGRESS): progress lines for src/chatwatch/install.py.
+prog() { if [[ -n "${CW_INSTALL_PROGRESS:-}" ]]; then printf '%s\n' "$1" >> "$CW_INSTALL_PROGRESS"; fi; }
+# a plain `ollama pull`; for the page, through Ollama's API, its progress lines kept (stopping curl stops the pull;
+# Ollama keeps the parts it has, so the next pull goes on from there)
+pull_model() {
+  local m="$1" line last=""
+  if [[ -z "${CW_INSTALL_PROGRESS:-}" ]]; then podman exec "$C" ollama pull "$m"; return; fi
+  echo "pulling $m ..."
+  prog "{\"phase\": \"pull\", \"model\": \"$m\"}"
+  while IFS= read -r line; do
+    printf '%s\n' "$line" >> "$CW_INSTALL_PROGRESS"
+    last="$line"
+  done < <(curl -sN 127.0.0.1:"$PORT"/api/pull -d "{\"model\": \"$m\"}")
+  if [[ "$last" == *'"success"'* ]]; then return 0; fi
+  echo "pulling $m failed: ${last:-no answer from the AI container}" >&2
+  return 1
+}
+
 # an MTP build's drafter: downloaded once into the store's drafts/ folder, checked against its pinned sha256
 fetch_drafter() {
-  local size="$1" spec file url sum got
+  local size="$1" spec file url sum got bytes cpid
   spec="$(sed -n "/\"$size\": {/,/}/p" "$PROJ/models/drafts/drafters.json")"
   file="$(sed -n 's/.*"file": "\([^"]*\)".*/\1/p' <<< "$spec")"
   url="$(sed -n 's/.*"url": "\([^"]*\)".*/\1/p' <<< "$spec")"
@@ -63,7 +82,19 @@ fetch_drafter() {
   fi
   if [[ -f "$STORE/drafts/$file" ]] && [[ "$(sha256sum "$STORE/drafts/$file" | cut -d' ' -f1)" == "$sum" ]]; then return 0; fi
   echo "downloading the $size drafter ($file) ..."
-  curl -fL --retry 3 -o "$STORE/drafts/$file.part" "$url"
+  if [[ -n "${CW_INSTALL_PROGRESS:-}" ]]; then
+    bytes="$(sed -n 's/.*"size": \([0-9]*\).*/\1/p' <<< "$spec")"
+    curl -fsL --retry 3 -o "$STORE/drafts/$file.part" "$url" &
+    cpid=$!
+    while kill -0 "$cpid" 2>/dev/null; do
+      prog "{\"phase\": \"drafter\", \"completed\": $(stat -c %s "$STORE/drafts/$file.part" 2>/dev/null || echo 0), \"total\": ${bytes:-0}}"
+      sleep 1
+    done
+    if ! wait "$cpid"; then rm -f "$STORE/drafts/$file.part"; echo "downloading $file failed" >&2; return 1; fi
+    prog "{\"phase\": \"drafter\", \"completed\": ${bytes:-0}, \"total\": ${bytes:-0}}"
+  else
+    curl -fL --retry 3 -o "$STORE/drafts/$file.part" "$url"
+  fi
   got="$(sha256sum "$STORE/drafts/$file.part" | cut -d' ' -f1)"
   if [[ "$got" != "$sum" ]]; then
     rm -f "$STORE/drafts/$file.part"; echo "$file: sha256 $got, expected $sum; not installed" >&2; return 1
@@ -99,7 +130,8 @@ case "${1:-start}" in
       fi
       fetch_drafter "$size"
       cp "$PROJ/models/drafts/$mf" "$STORE/drafts/$mf"
-      podman exec "$C" ollama show "$parent" >/dev/null 2>&1 || podman exec "$C" ollama pull "$parent"
+      podman exec "$C" ollama show "$parent" >/dev/null 2>&1 || pull_model "$parent"
+      prog '{"phase": "build"}'
       if [[ -z "$text" ]]; then
         podman exec "$C" sh -c "cd /root/.ollama/drafts && ollama create $tag -f $mf"
       else
@@ -138,7 +170,7 @@ case "${1:-start}" in
         podman exec "$C" sh -c "cd /root/.ollama/drafts && ollama create $tag -f $tmf"
       fi
     else
-      podman exec "$C" ollama pull "$tag"
+      pull_model "$tag"
     fi ;;
   version) curl -s --max-time 5 127.0.0.1:"$PORT"/api/version; echo ;;
   stop) podman stop "$C" ;;

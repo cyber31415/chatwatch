@@ -1,0 +1,4 @@
+# the Windows launcher: cmd.exe wants CRLF, so the .cmd is kept with CRLF as it is (-text: never converted, in a
+# clone or a release zip); the shell scripts run in Linux (WSL included) and need LF
+*.cmd -text
+*.sh text eol=lf

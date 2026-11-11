@@ -1240,7 +1240,7 @@ let aiPickByUser = false;     // the row the user clicked; otherwise the selecti
 const AI_NOTE_MS = 60000;
 let aiNoteAt = 0;
 let aiInfo = null, aiPick = null, aiErr = "", aiNote = "", aiTaskKind = null, aiOv = null, aiSeq = 0, aiStatus = {};
-let aiHidden = false, aiWasRunning = false, aiRateKind = null;
+let aiHidden = false, aiWasRunning = false, aiRateKind = null, dlWas = null;
 try { aiHidden = localStorage.getItem("cw_ai_hidden") === "1"; } catch(e){}
 const fmtMin = s => s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`;
 // FE-2 (audit 2026-11-10): a status redraws the AI panel and the Review box only while nobody is using them: not during
@@ -1431,12 +1431,33 @@ function ramTxt(m){
   return m.state === "short" ? ` · <span class="badT" data-ram="short" title="${esc(tip)}">needs ~${need} GB free RAM, ${av}</span>`
     : ` · <span class="warnT" data-ram="tight" title="${esc(tip)}">only just fits in memory: needs ~${need} GB free RAM, ${av}</span>`;
 }
+// ---- model downloads from the page (src/chatwatch/install.py, bin/install_helper.sh; owner 2026-11-10: "the No AI option
+// will be the starting point ... the user will be able to download it using the GUI"): one at a time, with its progress
+const gbTxt = b => (b / 1e9).toFixed(b >= 10e9 ? 0 : 1);
+const dlState = () => (aiStatus && aiStatus.install) || (aiInfo && aiInfo.install) || {};
+const dlActive = D => D.state === "running" || D.state === "starting";
+const dlLabel = tag => shortName(((aiInfo && aiInfo.rows || []).find(r => r.id === tag) || {}).label || tag);
+function dlText(D){
+  if (D.state === "starting" || D.phase === "starting") return "Starting the download...";
+  if (D.phase === "build") return "Setting it up...";
+  const pct = D.total ? Math.min(99, Math.floor(100 * D.done / D.total)) : 0;
+  return `Downloading: ${gbTxt(D.done || 0)} of ${gbTxt(D.total || 0)} GB (${pct}%)`;
+}
+function dlCell(r){                                  // a row's right-hand side while its model is not installed
+  const D = dlState();
+  // no Cancel in the last seconds (the build runs inside the AI container, where the helper cannot stop it)
+  if (dlActive(D) && D.tag === r.id) return `<span class="warnT" data-dl-progress="${esc(r.id)}">${esc(dlText(D))}</span>${D.phase === "build" ? "" : ` <button class="btn small" data-ai-dl-cancel>Cancel</button>`}`;
+  // no download helper (started with --no-llm, or by hand without ./start.sh): the command does the same
+  if (!D.helper) return `<span class="note">not installed · ${r.download_gb} GB · <code>${esc(r.install)}</code></span>`;
+  const fail = D.state === "failed" && D.tag === r.id ? ` <span class="badT" data-dl-error>${esc(D.error || "the download failed")}</span>` : "";
+  return `<button class="btn small" data-ai-dl="${esc(r.id)}" ${dlActive(D) ? `disabled title="one download at a time"` : `title="downloads this model (${r.download_gb} GB) into chatwatch's AI container"`}>Download (${r.download_gb} GB)</button>${fail}`;
+}
 function rowHTMLai(r){
   const sel = aiPick && aiPick.mode === "single" && aiPick.live === r.id;
   const off = !!r.blocked || !r.installed;
   const inUse = aiInfo.choice.mode === "single" && aiInfo.choice.live === r.id;
   const right = r.blocked ? `<span class="warnT">${esc(shortName(r.blocked))}</span>`
-    : !r.installed ? `<span class="note">not installed · ${r.download_gb} GB · <code>${esc(r.install)}</code></span>`
+    : !r.installed ? dlCell(r)
     : `<button class="btn small" data-ai-speed="${esc(r.id)}" title="1-3 min: measures how fast this model runs on this machine">Check Speed</button>`;
   return `<label class="r${sel ? " sel" : ""}${off ? " off" : ""}"><input type="radio" name="aiRow" data-ai-row="${esc(r.id)}" ${sel ? "checked" : ""} ${off ? "disabled" : ""}>
     <span class="nm">${esc(shortName(r.label))}${REC.single === r.id ? ` <span class="chip first" title="${REC.rate ? `the best accuracy at ${Math.round(REC.rate)} msgs/min` : "the best accuracy that fits this machine"}">recommended</span>` : ""}${inUse ? ` <span class="chip">in use</span>` : ""}</span>
@@ -1455,7 +1476,7 @@ function hybHTML(h){
   return `<label class="r${sel ? " sel" : ""}${off ? " off" : ""}"><input type="radio" name="aiRow" data-ai-hyb="${esc(h.live)}|${esc(h.reviewer)}" ${sel ? "checked" : ""} ${off ? "disabled" : ""}>
     <span class="nm">${esc(nm.short)}${REC.hybrid === h.live + "|" + h.reviewer ? ` <span class="chip first" title="${REC.rate ? (REC.behind ? `the best single model falls behind at ${Math.round(REC.rate)} msgs/min` : `at ${Math.round(REC.rate)} msgs/min the hybrid catches more than the best single model`) : "the best hybrid for this machine"}">recommended</span>` : ""}${inUse ? ` <span class="chip">in use</span>` : ""}<br><span class="note" style="font-weight:400">${esc(nm.long)}</span></span>
     <span><span class="k" data-hyb-figs><span title="${esc(ACC_TIP)}">+${h.quality.b_over_no_ai}% accuracy</span> · Live: ${kupTxt(h.live_speed)} · Review: ${rs && rs.measured ? rev : `<i>Estimated ${rev}</i>`}</span>${ramTxt(h.ram)}${h.ram && h.ram.state !== "short" && !h.ram.readahead ? ` · <span class="note" data-readahead="no">not enough free RAM to keep both models in memory (~${Math.round(h.ram.readahead_gb)} GB): each review loads them from disk</span>` : ""}</span>
-    <span>${off ? `<span class="note">${esc(shortName(h.blocked) || "install both models first")}</span>` : ""}</span>${effLine(h)}</label>`;
+    <span>${off ? `<span class="note">${esc(shortName(h.blocked) || "download both models first")}</span>` : ""}</span>${effLine(h)}</label>`;
 }
 // the line under "This machine" (owner 2026-11-10: only what to do, not which tested machine the estimate comes from)
 function tierNote(T){
@@ -1478,7 +1499,8 @@ function renderAI(){
   // the one-line bar has no action row: an error from its own Cancel shows on it, for AI_NOTE_MS (FE-5)
   const barErr = (aiHidden || locked) && aiErr && Date.now() - aiErrAt < AI_NOTE_MS ? ` <span class="badT" data-ai-err>${esc(aiErr)}</span>` : "";
   const sum = `<div class="sum"><b>AI</b>${aiLine()}${aiStatus.blocked ? ` <span class="badT" data-blocked>AI off for this run: ${esc(shortName(aiStatus.blocked))}</span>` : ""}
-     <span class="sp"></span>${task ? `<span class="warnT" title="${esc(task.what)}">${esc(taskText(task))}</span> <button class="btn small" data-ai-cancel>Cancel</button>` : note}${barErr}
+     <span class="sp"></span>${(aiHidden || locked) && dlActive(dlState()) ? `<span class="warnT" data-dl-bar>${esc(dlLabel(dlState().tag))}: ${esc(dlText(dlState()))}</span> ` : ""}
+     ${task ? `<span class="warnT" title="${esc(task.what)}">${esc(taskText(task))}</span> <button class="btn small" data-ai-cancel>Cancel</button>` : note}${barErr}
      ${sessName ? `<span class="sess" title="this session's log folder under data/sessions">Logging: ${esc(sessName)}</span>` : ""}
      ${locked ? `<span class="note">Change after Stop</span>` : `<button class="btn small" data-ai-toggle>${aiHidden ? "Details" : "Hide"}</button>`}</div>`;
   if (aiHidden || locked){ setKeep(P, sum); return; }
@@ -1562,12 +1584,25 @@ function aiOnStatus(r){
   aiTaskKind = k;
   if (mode === "live" && (!aiInfo && !aiSeq || aiWasRunning && !running && !lastStatus.stopping
       || !aiInfo && aiErr && Date.now() - aiLoadAt >= AI_RETRY_MS)) loadAI();      // FE-4: a failed first read retries
+  const D = aiStatus.install || {};                    // a download finished: say so, and list the model as installed
+  if (dlWas && dlWas.active && !dlActive(D)){
+    if (D.state === "done" && D.tag === dlWas.tag){ aiNote = `${esc(dlLabel(D.tag))} is downloaded: Check Speed measures it on this machine, Use this picks it`; aiNoteAt = Date.now(); }
+    loadAI();
+  }
+  dlWas = {active: dlActive(D), tag: D.tag};
   aiWasRunning = running || !!lastStatus.stopping;
   aiRedraw();
 }
 $("aiPanel").addEventListener("click", async e => {
-  const t = e.target.closest("[data-ai-use],[data-ai-speed],[data-ai-rate],[data-ai-cancel],[data-ai-toggle]");
+  const t = e.target.closest("[data-ai-use],[data-ai-speed],[data-ai-rate],[data-ai-cancel],[data-ai-toggle],[data-ai-dl],[data-ai-dl-cancel]");
   if (!t) return;
+  if (t.dataset.aiDl){
+    e.preventDefault();
+    const j = await aiPost("/api/ai/install", {model: t.dataset.aiDl});
+    if (j){ aiStatus.install = {...dlState(), state: "starting", tag: t.dataset.aiDl, error: ""}; dlWas = {active: true, tag: t.dataset.aiDl}; renderAI(); }
+    return;
+  }
+  if (t.dataset.aiDlCancel !== undefined){ e.preventDefault(); await aiPost("/api/ai/install_cancel"); return; }
   if (t.dataset.aiToggle !== undefined){ aiHidden = !aiHidden; try { localStorage.setItem("cw_ai_hidden", aiHidden ? "1" : "0"); } catch(e){} renderAI(); return; }
   if (t.dataset.aiCancel !== undefined){ await aiPost("/api/ai/cancel"); return; }
   if (t.dataset.aiSpeed){ e.preventDefault(); aiNote = ""; if (await aiPost("/api/ai/speed", {model: t.dataset.aiSpeed})) aiTaskKind = "speed"; return; }

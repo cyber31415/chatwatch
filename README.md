@@ -21,17 +21,24 @@ chatwatch is not affiliated with or endorsed by Twitch.
 [Everyday use](#everyday-use) · [Settings](#settings) · [Privacy and responsible use](#privacy-and-responsible-use)
 
 ## Quick start
+Downloads for each system are on the [Releases](https://github.com/cyber31415/chatwatch/releases) page.
+
+**Windows 10 or 11:** download `chatwatch-<version>-windows.zip`, extract it, and double-click
+**Start chatwatch.cmd**. The first time, it sets up WSL2's Ubuntu (it asks you to choose an Ubuntu username and
+password); after that it just starts. The page opens in your browser. Ctrl+C in its window stops chatwatch and gives
+the memory back to Windows. More in [Windows (WSL2)](#windows-wsl2).
+
+**Linux** (with podman, see [Requirements](#requirements)):
 ```
 git clone https://github.com/cyber31415/chatwatch.git && cd chatwatch
 ./start.sh                                     # builds its image, starts the AI container
 ```
-Open **http://127.0.0.1:8765**. On the first start no AI is chosen yet: the AI panel lists the setups that fit your
-machine, and one that is not installed shows the command that installs it, for example:
-```
-bin/ollama.sh install gemma4mtp:31b-n3-text    # in a second terminal
-```
-Then pick a setup, press **Use this**, type a channel and press **Start**. The first start also downloads two small
-encoder models (about 150 MB, pinned and checksum-verified).
+Then open **http://127.0.0.1:8765**. A release's `chatwatch-<version>-linux.tar.gz` holds the same files.
+
+**Both:** the first start downloads everything except the AI models and starts with **No AI** (word lists and a small
+toxicity model), which works straight away: type a channel and press **Start**. The AI models are big downloads
+(6-20 GB), so none is downloaded until you choose one: the AI panel lists the setups that fit your machine; press
+**Download** on one (the page shows its progress), then **Use this**.
 
 ## A tour of the dashboard
 The screenshots use invented chat (every chatter is `demo_...`) run through the real engine. The text of each flagged
@@ -116,16 +123,46 @@ With the 31B on quiet chat it catches about 3 in 4 toxic messages (recall 0.74) 
    behind it is).
 
 ## Requirements
-- **Linux with podman 4.0 or later**, and the usual command-line tools (bash, curl, coreutils, util-linux).
-  Everything else runs in containers; nothing is installed on the host.
+- **Linux with podman 4.0 or later**, and the usual command-line tools (bash, curl, coreutils, util-linux, iptables).
+  Everything else runs in containers; nothing is installed on the host. **Windows 10 or 11** runs it inside WSL2
+  (see [Windows (WSL2)](#windows-wsl2)).
 - **A GPU is recommended:** Nvidia (with podman's CDI set up: `sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml`)
   or AMD (ROCm). It also runs on the CPU, slowly.
-- **Disk:** about 4-6 GB for the containers (Ollama's image is most of it), plus the models you install (the 31B
+- **Disk:** about 4-6 GB for the containers (Ollama's image is most of it), plus the models you download (the 31B
   about 20 GB, the 12B about 8 GB).
 - **RAM:** 16 GB is the lowest option; the 31B on a 12 GB card needs about 14 GB free.
 
-Tested on an Nvidia GPU + AMD CPU system and an AMD GPU + AMD CPU system. The dashboard reads your GPU memory and
-system RAM itself; other hardware uses estimates until you press **Check Speed**. macOS and Windows are untested.
+Tested on an Nvidia GPU + AMD CPU system and an AMD GPU + AMD CPU system (Linux), and an Intel laptop with no GPU and
+16 GB of RAM (Windows 11, WSL2). The dashboard reads your GPU memory and system RAM itself; other hardware uses
+estimates until you press **Check Speed**. macOS is not supported.
+
+### Windows (WSL2)
+chatwatch runs in WSL2's Linux, unchanged; the page opens in your normal Windows browser. WSL itself must be installed
+once: if it is not, open PowerShell as administrator, run `wsl --install --no-distribution` and restart the PC.
+
+**With the launcher** (the release's `chatwatch-<version>-windows.zip`, or `windows\` in this repository), double-click
+**Start chatwatch.cmd**. Windows may ask whether to run a file from the internet: choose Run. Each step is done once:
+1. **WSL's memory.** WSL's default is half your RAM, too little for the AI models, so it raises WSL's limit in
+   `C:\Users\<you>\.wslconfig` to your RAM minus 3 GB. It asks first and keeps a copy of the old file. This is a
+   limit, not a reservation: Windows keeps what WSL does not use.
+2. **Ubuntu 24.04**, where you choose a username and password.
+3. **podman and chatwatch** inside Ubuntu, in `~/chatwatch` (it asks for that password).
+4. **It starts chatwatch** and opens the page. **Ctrl+C** stops chatwatch, then stops Ubuntu (and WSL, when nothing
+   else runs in it), so all the memory goes back to Windows.
+
+**By hand** (PowerShell, then Ubuntu):
+1. Put `[wsl2]` and `memory=12GB` (your RAM minus 3 or 4 GB) on two lines in `C:\Users\<you>\.wslconfig`, then run
+   `wsl --shutdown`.
+2. `wsl --install -d Ubuntu-24.04`
+3. In Ubuntu: `sudo apt update && sudo apt install -y podman git curl iptables`
+4. `cd ~ && git clone https://github.com/cyber31415/chatwatch.git && cd chatwatch && ./start.sh`. Keep it in Ubuntu's
+   own disk, not a Windows folder under `/mnt/c`, where models load slowly.
+5. Open **http://127.0.0.1:8765** in your Windows browser. Ctrl+C stops chatwatch and its AI container. WSL itself
+   keeps some memory until it shuts down: `wsl --shutdown` in PowerShell gives it all back.
+
+Inside WSL the Windows desktop and browser use memory outside Linux, so the AI panel keeps only the dashboard's share
+free beside a model. An Nvidia card should work through WSL's CUDA support (set up podman's CDI as above) but is
+untested; an AMD card under WSL is not supported.
 
 ## Everyday use
 ```
@@ -134,9 +171,11 @@ system RAM itself; other hardware uses estimates until you press **Check Speed**
 ./start.sh --log             # keep a session log of this run (see Privacy)
 CW_PORT=8766 ./start.sh      # another port
 bin/ollama.sh stop           # free the GPU and RAM the AI container holds
+bin/ollama.sh install TAG    # a model download from a terminal (the same as the page's Download button)
 ```
-Ctrl+C stops the dashboard; the AI container keeps its model in memory for the next start. One dashboard at a time,
-one channel per session: to watch another channel, Stop, then Start.
+Ctrl+C stops the dashboard; the AI container keeps its model in memory for the next start (on Windows it stops too, so
+the memory goes back to Windows). One dashboard at a time, one channel per session: to watch another channel, Stop,
+then Start.
 
 While it runs it leaves room for the rest of your machine: two CPU cores, and on a GPU that drives your screen 1.5 GB
 of its memory (see Settings).
@@ -153,6 +192,7 @@ Environment variables, or lines in `~/.config/chatwatch/gpu.env` (`NAME=value`; 
 | `CW_KEEP_CORES` | 2 | CPU cores the AI leaves free for the rest of the machine (0: none) |
 | `CW_VRAM_RESERVE_GB` | 1.5 | on a GPU that drives your screen: GPU memory a model that fills the card leaves free |
 | `CW_SESSION_KEEP_DAYS` | 14 | session logs older than this are deleted at start (0: keep) |
+| `CW_KEEP_AI` | (unset) | Windows, started by hand in Ubuntu: 1 keeps the AI container and its model loaded after Ctrl+C, as on Linux (the launcher always stops Ubuntu) |
 
 ## Privacy and responsible use
 - It logs in anonymously (read-only), sees only what any viewer sees, and never posts.
@@ -167,7 +207,10 @@ Environment variables, or lines in `~/.config/chatwatch/gpu.env` (`NAME=value`; 
 - More in [docs/RESPONSIBLE_USE.md](docs/RESPONSIBLE_USE.md): the defaults, the known bias risks and why.
 
 ## Files
-- `start.sh` the launcher; `bin/` the container wrapper (`cw`), the AI container (`ollama.sh`), its log copier.
+- `start.sh` the launcher; `bin/` the container wrapper (`cw`), the AI container (`ollama.sh`), its log copier, and the
+  helper that runs the page's model downloads (`install_helper.sh`).
+- `windows/` the Windows launcher (`Start chatwatch.cmd`, `chatwatch.ps1`, and `setup_wsl.sh`, its part inside WSL): a
+  release's Windows zip holds these three files.
 - `src/chatwatch/` the dashboard (Python); `web/index.html` its page.
 - `data/models/` the small models trained for this tool (the toxicity head, the cold-start and chatter-type models).
 - `models/drafts/` the MTP Modelfiles and the drafter download list.

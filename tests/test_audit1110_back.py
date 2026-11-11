@@ -450,9 +450,10 @@ def test_ph8_a_checks_keep_up_is_the_tier_figure_for_the_same_timings():
     # the one cell that reads a step above (PH-R2-2, named in picker.py's comment): the plain 12B on 8 GB, never listed
     assert above == [("gemma4:12b-it-qat", "E")], above
     assert same >= 19 and rr_same >= 35, (same, total, rr_same, rr_total)
-    # the e4b + MTP on CPU 16 GB, the auditor's example: 20, as tested (it read 10)
+    # the e4b + MTP on CPU 16 GB, the auditor's example: since 2026-11-10 the Windows laptop's own Check Speed (10; the
+    # development run on a desktop held to 8 cores read 20), and its tier figure reads the same from its timings
     e4 = picker.setup("gemma4mtp:e4b-n4")["tiers"]["F16"]
-    assert picker.check_numbers(e4["person_s"], e4["a"], e4["b"])["keepup"] == 20 == e4["keepup"]
+    assert picker.check_numbers(e4["person_s"], e4["a"], e4["b"])["keepup"] == 10 == e4["keepup"]
 
 
 # ------------------------------------------------------------------------------------------------ PH9

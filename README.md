@@ -5,6 +5,18 @@ toxic and which chatters are worth a look, with the reasons.
 
 ![The chatwatch dashboard while watching a channel](docs/images/overview.png)
 
+**Built on AI models that run on your own computer.**
+- **Every message:** small, fast models read each message as it arrives. They are `unbiased-toxic-roberta` (an ONNX
+  encoder) with a toxicity head trained for this tool, and `all-MiniLM-L6-v2`, which matches a chatter's way of
+  talking to known patterns.
+- **The flagged ones:** a local language model, **Gemma 4** (Google), re-reads flagged messages and reads each flagged
+  chatter as a whole. Its reads decide the Watchlist.
+  - You choose the size that suits your machine: **Gemma 4 31B**, **Gemma 4 12B** or **Gemma 4 E4B**, or the
+    **12B + 31B Hybrid**.
+  - Ollama runs them, each with a small draft model (MTP) that makes it faster.
+- **No AI:** chatwatch also works without the language model, with word lists and the small models only.
+
+<!-- two lists -->
 - **Runs on your machine.** The AI models run locally; no chat or chatter data leaves your computer.
 - **Flags with reasons.** Every flagged message says what it is (an insult, a threat, mockery, spam...) and who it is
   aimed at; every chatter on the Watchlist says why they are there.
@@ -28,12 +40,19 @@ Downloads for each system are on the [Releases](https://github.com/cyber31415/ch
 password); after that it just starts. The page opens in your browser. Ctrl+C in its window stops chatwatch and gives
 the memory back to Windows. More in [Windows (WSL2)](#windows-wsl2).
 
-**Linux** (with podman, see [Requirements](#requirements)):
+**Linux:** it needs podman 4.0 or later, which `start.sh` does not install. Install it first:
+- Ubuntu or Debian: `sudo apt install podman iptables`
+- Fedora: `sudo dnf install podman`
+- Arch: `sudo pacman -S podman`
+
+Then:
 ```
 git clone https://github.com/cyber31415/chatwatch.git && cd chatwatch
 ./start.sh                                     # builds its image, starts the AI container
 ```
-Then open **http://127.0.0.1:8765**. A release's `chatwatch-<version>-linux.tar.gz` holds the same files.
+Then open **http://127.0.0.1:8765**. A release's `chatwatch-<version>-linux.tar.gz` holds the same files. With an Nvidia
+GPU, set up podman's CDI once (see [Requirements](#requirements)). The models it downloads stay inside its folder
+(`models/`), so deleting the folder removes them. Its two container images are in podman's own storage (`podman rmi`).
 
 **Both:** the first start downloads everything except the AI models and starts with **No AI** (word lists and a small
 toxicity model), which works straight away: type a channel and press **Start**. The AI models are big downloads
@@ -53,6 +72,20 @@ While stopped, the AI panel shows what this machine has and every setup that fit
   minutes) to measure a model on your machine. The ones above were measured.
 - **Measure the channel's chat rate** (or type it) and the panel marks the setup that suits that chat. Up to about 40
   msgs/min the Gemma 4 31B is the most accurate; busier chat suits the **12B + 31B Hybrid**.
+
+**What each setup needs.** A GPU is fastest, but it is not required:
+- a model that does not fit in the GPU's memory is split, with the rest in system RAM (slower);
+- with no GPU, a model runs from system RAM on the CPU (slowest).
+
+The panel offers only what fits your machine, from what it reads at start.
+
+| setup | download | where it runs | smallest machine it is offered on |
+|---|---|---|---|
+| Gemma 4 31B | 19.8 GB | split between GPU and RAM: on a 12 GB GPU about half of it sits in RAM (it needs about 14 GB of RAM free). Not offered without a GPU | 8 GB GPU, 32 GB RAM |
+| 12B + 31B Hybrid | 27.8 GB (both) | as the 31B, with the 12B beside it; both stay in memory | 8 GB GPU, 32 GB RAM |
+| Gemma 4 12B | 8.0 GB | whole on a 12 GB GPU; split on an 8 GB GPU; or on the CPU from RAM (about 9 GB) | no GPU, 32 GB RAM |
+| Gemma 4 E4B | 6.3 GB | whole on an 8 GB GPU; or on the CPU from RAM (about 7 GB) | no GPU, 16 GB RAM |
+| No AI | none | the CPU: word lists and the small models | any |
 
 ### 2. The AI bar
 ![The AI bar](docs/images/ai-bar.png)
@@ -105,12 +138,17 @@ Click any name for their card: why they are listed, the AI's read of them as a p
 Measured on held-out real Twitch chat against the consensus of two independent AI judges (Claude Opus). Details and
 caveats: [docs/QUALITY.md](docs/QUALITY.md).
 
-| setup | accuracy (gain over No AI) | msgs/min it keeps up with (12 GB GPU) |
+| setup | accuracy (gain over No AI) | msgs/min it keeps up with* |
 |---|---|---|
 | Gemma 4 31B | +66% | ~40 |
 | 12B + 31B Hybrid (Review covering all flagged chatters) | +62% | ≥150 live |
 | Gemma 4 12B | +50% | ≥150 |
-| No AI (word lists and the small model) | +0% | any |
+| Gemma 4 E4B | +37% | ≥150 |
+| No AI (word lists and the small models) | +0% | any |
+
+\* Tested on a machine with a 12 GB Nvidia GPU and 96 GB of system memory.
+
+With no GPU, the E4B on a laptop with 16 GB of RAM keeps up with about 10 msgs/min (measured).
 
 With the 31B on quiet chat it catches about 3 in 4 toxic messages (recall 0.74) at precision 0.64.
 
@@ -130,7 +168,7 @@ With the 31B on quiet chat it catches about 3 in 4 toxic messages (recall 0.74) 
   or AMD (ROCm). It also runs on the CPU, slowly.
 - **Disk:** about 4-6 GB for the containers (Ollama's image is most of it), plus the models you download (the 31B
   about 20 GB, the 12B about 8 GB).
-- **RAM:** 16 GB is the lowest option; the 31B on a 12 GB card needs about 14 GB free.
+- **RAM:** 16 GB is the lowest option; the 31B on a 12 GB GPU needs about 14 GB free.
 
 Tested on an Nvidia GPU + AMD CPU system and an AMD GPU + AMD CPU system (Linux), and an Intel laptop with no GPU and
 16 GB of RAM (Windows 11, WSL2). The dashboard reads your GPU memory and system RAM itself; other hardware uses
@@ -161,8 +199,8 @@ once: if it is not, open PowerShell as administrator, run `wsl --install --no-di
    keeps some memory until it shuts down: `wsl --shutdown` in PowerShell gives it all back.
 
 Inside WSL the Windows desktop and browser use memory outside Linux, so the AI panel keeps only the dashboard's share
-free beside a model. An Nvidia card should work through WSL's CUDA support (set up podman's CDI as above) but is
-untested; an AMD card under WSL is not supported.
+free beside a model. An Nvidia GPU should work through WSL's CUDA support (set up podman's CDI as above) but is
+untested; an AMD GPU under WSL is not supported.
 
 ## Everyday use
 ```
@@ -190,7 +228,7 @@ Environment variables, or lines in `~/.config/chatwatch/gpu.env` (`NAME=value`; 
 | `CW_OLLAMA_PORT` | 11435 | the AI container's port (on 127.0.0.1) |
 | `CW_OLLAMA_STORE` | `models/ollama` | where the AI models are kept |
 | `CW_KEEP_CORES` | 2 | CPU cores the AI leaves free for the rest of the machine (0: none) |
-| `CW_VRAM_RESERVE_GB` | 1.5 | on a GPU that drives your screen: GPU memory a model that fills the card leaves free |
+| `CW_VRAM_RESERVE_GB` | 1.5 | on a GPU that drives your screen: GPU memory a model that fills the GPU leaves free |
 | `CW_SESSION_KEEP_DAYS` | 14 | session logs older than this are deleted at start (0: keep) |
 | `CW_KEEP_AI` | (unset) | Windows, started by hand in Ubuntu: 1 keeps the AI container and its model loaded after Ctrl+C, as on Linux (the launcher always stops Ubuntu) |
 

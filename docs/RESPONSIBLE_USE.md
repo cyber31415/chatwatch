@@ -22,10 +22,10 @@ why.
 ## Before using it on a real channel
 - **Use it for your own channel, or one you moderate, for moderators only.** Never show its labels to chatters or on
   stream.
-- **What it keeps.** `data/state/engine.pkl` holds running per-chatter sums for the channels you watched (with
-  `engine.pkl.prev`, the state before the last save). With `--log`, each session folder also keeps that run's raw chat
-  lines (`raw/`), the tool's outputs (`outputs.jsonl`) and a copy of the state at its start; delete them when no longer
-  needed.
+- **What it keeps.** `data/state/engine.pkl` holds, for the channels you watched, running per-chatter sums and each
+  chatter's recent and flagged messages, with usernames (and `engine.pkl.prev`, the state before the last save).
+  With `--log`, each session folder also keeps that run's raw chat lines (`raw/`), the tool's outputs
+  (`outputs.jsonl`) and a copy of the state at its start; delete them when no longer needed.
 - **Your marks and corrections.** `data/sessions/owner_roles.json` holds the user id, login and display name of each
   chatter you marked as a bot; `data/sessions/owner_overrides.jsonl` holds the ids, levels and times of messages you
   reclassified (no text). They steer your dashboard only and are never used to train anything.

@@ -174,6 +174,18 @@ measure_avail() {
   export CW_SPEC_VRAM_AVAIL_MB CW_SPEC_VRAM_HELD_MB CW_SPEC_RAM_AVAIL_MB
 }
 detect_specs
+# An Nvidia GPU needs podman's GPU access (a CDI spec from the NVIDIA Container Toolkit) before a container can use it.
+# Without one the AI container would not start (README review 2026-11-11), so this run uses the CPU and says how to
+# turn the GPU on. CW_GPU set by the user is left alone.
+# (each existing file on its own, so a missing one cannot change the answer, whichever grep this is)
+cdi_nvidia() { local f; for f in /etc/cdi/*.yaml /etc/cdi/*.json /var/run/cdi/*.yaml /var/run/cdi/*.json; do
+  [[ -f "$f" ]] && grep -q 'nvidia.com/gpu' "$f" && return 0; done; return 1; }
+if [[ "$CW_SPEC_GPU_VENDOR" == nvidia && -z "${CW_GPU:-}" ]] && ! cdi_nvidia; then
+  echo "[live] note: this Nvidia GPU is not set up for podman yet, so the AI runs on the CPU. To use the GPU: install the NVIDIA Container Toolkit, run  sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml  and start again"
+  export CW_GPU=cpu
+  CW_SPEC_GPU_VENDOR=none CW_SPEC_GPU_NAME="" CW_SPEC_VRAM_MB=0 CW_SPEC_GPU_DISPLAY=0
+  export CW_SPEC_GPU_VENDOR CW_SPEC_GPU_NAME CW_SPEC_VRAM_MB CW_SPEC_GPU_DISPLAY
+fi
 measure_avail
 echo "[live] this machine: GPU ${CW_SPEC_GPU_VENDOR} ${CW_SPEC_GPU_NAME} (${CW_SPEC_VRAM_MB} MB, ${CW_SPEC_VRAM_AVAIL_MB} MB available for models), RAM ${CW_SPEC_RAM_MB} MB (${CW_SPEC_RAM_AVAIL_MB} MB available), ${CW_SPEC_CORES} cores / ${CW_SPEC_THREADS} threads"
 if [[ "$CW_SPEC_WSL" == 1 ]]; then             # Windows (WSL2): the two things that make it slow or keep the AI out

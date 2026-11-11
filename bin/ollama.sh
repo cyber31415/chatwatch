@@ -31,7 +31,17 @@ if [[ -f "$CONF" ]]; then                     # NAME=value lines; a variable alr
 fi
 if [[ -n "${CALLER_NG+set}" ]]; then CW_LLM_NUM_GPU="$CALLER_NG"; fi
 if [[ -z "${CW_GPU:-}" ]]; then
-  if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then CW_GPU=nvidia
+  if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
+    CW_GPU=nvidia
+    # without podman's GPU access (a CDI spec) the container could not start: the CPU, and how to set it up
+    cdi=0
+    for f in /etc/cdi/*.yaml /etc/cdi/*.json /var/run/cdi/*.yaml /var/run/cdi/*.json; do  # existing files, one at a time
+      [[ -f "$f" ]] && grep -q 'nvidia.com/gpu' "$f" && cdi=1
+    done
+    if (( ! cdi )); then
+      echo "note: the Nvidia GPU is not set up for podman (sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml): using the CPU" >&2
+      CW_GPU=cpu
+    fi
   elif [[ -e /dev/kfd ]] && awk '$1 >= 4294967296 {f=1} END {exit !f}' /sys/class/drm/card*/device/mem_info_vram_total 2>/dev/null; then
     CW_GPU=amd                                 # an AMD card with at least 4 GB (an integrated GPU's share is not used)
   else CW_GPU=cpu; fi

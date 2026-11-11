@@ -51,6 +51,7 @@ def test_the_launcher_clones_this_release():
     ver = (ROOT / "VERSION").read_text().strip()
     m = re.search(r'^\$Version = "([^"]+)"', (WIN / "chatwatch.ps1").read_text(), re.M)
     assert m and m.group(1) == ver
+    assert f'__version__ = "{ver}"' in (ROOT / "src/chatwatch/__init__.py").read_text()   # one version everywhere
 
 
 def test_the_launcher_files_suit_windows_and_linux():
@@ -104,3 +105,14 @@ def test_the_launcher_keeps_chatwatch_at_its_release_and_puts_a_test_copy_back(t
     r = run("9.9.9")
     assert r.returncode == 0, r.stderr
     assert (app / "start.sh").read_text() == "release\n" and (app / "data" / "state.json").read_text() == "mine"
+
+
+def test_an_nvidia_gpu_without_podman_gpu_access_falls_back_to_the_cpu():
+    """README review 2026-11-11: with nvidia-smi working but no CDI spec, `--device nvidia.com/gpu=all` would stop the AI
+    container at the first start (Windows with an Nvidia GPU too). start.sh and bin/ollama.sh then use the CPU and say
+    how to set the GPU up; a CW_GPU the user set is left alone."""
+    start = (ROOT / "start.sh").read_text()
+    assert "cdi_nvidia()" in start and '-z "${CW_GPU:-}" ]] && ! cdi_nvidia' in start and "export CW_GPU=cpu" in start
+    assert start.index("! cdi_nvidia") < start.index("\nmeasure_avail\n")      # before the memory read and the AI start
+    oll = (ROOT / "bin/ollama.sh").read_text()
+    assert "(( ! cdi ))" in oll and "nvidia-ctk cdi generate" in oll

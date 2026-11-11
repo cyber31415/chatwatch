@@ -10,7 +10,7 @@
 #      else runs in it), so the memory goes back to Windows
 # -From <folder>: copy chatwatch from a folder instead of GitHub (testing a version not yet released).
 param([switch]$NoBrowser, [string]$From = "")
-$Version = "0.9.0-beta"                 # the GitHub release this launcher belongs to (the repository's VERSION file)
+$Version = "0.9.1-beta"                 # the GitHub release this launcher belongs to (the repository's VERSION file)
 $Distro = "Ubuntu-24.04"
 $ErrorActionPreference = "Continue"
 $env:WSL_UTF8 = "1"

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Run a command inside chatwatch's container (start.sh runs the dashboard through it).
+#   bin/cw python -m chatwatch.forget --help
+# This folder is the only host path the container can see (and the Ollama store, read-only, for the hybrid's
+# read-ahead).
+set -euo pipefail
+PROJ="$(cd "$(dirname "$0")/.." && pwd)"
+IMAGE="${CW_IMAGE:-chatwatch:0.9-beta-$(sha256sum "$PROJ/Containerfile" | cut -c1-8)}"
+STORE="${CW_OLLAMA_STORE:-$PROJ/models/ollama}"
+OST=(); [[ -d "$STORE/models" ]] && OST=(-v "$STORE":/ollama:ro -e CW_OLLAMA_MODELS=/ollama)
+PORT="${CW_PORT:-8765}"
+TTY=(); [ -t 0 ] && TTY=(-it)
+# only the dashboard server needs a published port (localhost only)
+PUB=(); [[ " $* " == *"chatwatch.serve"* ]] && PUB=(-p 127.0.0.1:"$PORT":"$PORT")
+podman network exists cw-net || podman network create cw-net >/dev/null
+# CW_HOST: the dashboard lock names this machine, not the container. CW_SPEC_* (the machine's specs), CW_OLLAMA_LOG (the
+# copy of Ollama's log) and CW_GPU: start.sh sets them for the model picker
+# label=disable: on SELinux systems (Fedora, RHEL) the container may then read this folder
+exec podman run --rm --init "${TTY[@]}" --userns=keep-id --security-opt label=disable -e CW_PORT="$PORT" --network cw-net \
+  ${CW_LLM_MODEL:+-e CW_LLM_MODEL="$CW_LLM_MODEL"} ${CW_LLM_NUM_GPU:+-e CW_LLM_NUM_GPU="$CW_LLM_NUM_GPU"} \
+  ${CW_LLM_NUM_THREAD:+-e CW_LLM_NUM_THREAD="$CW_LLM_NUM_THREAD"} ${CW_VRAM_RESERVE_GB:+-e CW_VRAM_RESERVE_GB="$CW_VRAM_RESERVE_GB"} \
+  ${CW_SESSION_KEEP_DAYS:+-e CW_SESSION_KEEP_DAYS="$CW_SESSION_KEEP_DAYS"} \
+  -e CW_HOST="${CW_HOST:-${HOSTNAME:-$(uname -n)}}" ${CW_FORCE:+-e CW_FORCE="$CW_FORCE"} \
+  -e 'CW_SPEC_*' ${CW_OLLAMA_LOG:+-e CW_OLLAMA_LOG="$CW_OLLAMA_LOG"} ${CW_GPU:+-e CW_GPU="$CW_GPU"} \
+  ${CW_REVIEW_SCOPE:+-e CW_REVIEW_SCOPE="$CW_REVIEW_SCOPE"} \
+  -v "$PROJ":/work -w /work "${OST[@]}" \
+  "${PUB[@]}" \
+  ${CW_NAME:+--name "$CW_NAME"} \
+  "$IMAGE" "$@"

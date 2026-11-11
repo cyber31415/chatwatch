@@ -1,0 +1,13 @@
+# downloaded on first use (pinned, sha256-checked): the encoders, the Ollama store with its models and drafters
+models/unbiased-toxic-roberta-onnx/
+models/all-MiniLM-L6-v2/
+models/ollama/
+# written by the dashboard while it runs
+data/state/
+data/sessions/
+data/emotes/
+data/mlcache/
+data/raw/
+__pycache__/
+*.pyc
+.pytest_cache/

@@ -1,0 +1,1706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chatwatch</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
+    --text:#e8eaf0; --dim:#9aa3b2; --faint:#8a93a3; --accent:#9147ff;
+    --ok:#3ddc97; --warn:#ffb347; --bad:#ff6b6b; --info:#5cc8ff;
+    --benign:#3ddc97; --mild:#ffd166; --badfaith:#ff6b6b;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  html,body{height:100%}
+  /* the page is a column: header, strip, banners, then the two cards take what is left (LF-6) */
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+       display:flex;flex-direction:column;min-height:100vh;height:100vh}
+  header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:8px 16px;border-bottom:1px solid var(--line);
+         background:var(--panel);flex:none}
+  header h1{font-size:15px;margin:0;letter-spacing:1.5px;font-weight:800}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--faint);margin-right:6px}
+  .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .strip .st{color:var(--text);white-space:nowrap}
+  .strip .st.off{color:var(--warn)}
+  .strip .st .note{color:var(--dim)}
+  .stats{display:contents}
+  header .right{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-left:auto}
+  .strip .late{color:var(--warn)}
+  .errs{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+  .err-pill{font-size:11px;border:1px solid var(--warn);color:var(--warn);border-radius:10px;padding:0 7px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap}
+  .tab{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:16px;padding:3px 10px;font-size:13px;
+       cursor:pointer;display:inline-flex;gap:5px;align-items:center;font-family:inherit}
+  .tab.on{border-color:var(--accent);background:var(--accent);color:#fff}
+  .tab.stopped{opacity:.6;text-decoration:line-through}
+  .tab.stale{opacity:.6}
+  /* the server is not reachable: the lists are the last ones it sent (LF4-1) */
+  body.offline main{opacity:.65}
+  .cnt{font-size:10px;font-weight:700;border-radius:8px;padding:0 5px;color:#111}
+  .cnt.act{background:var(--bad)} .cnt.watch{background:var(--warn)}
+  .ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .ctl .at{color:var(--dim)}
+  .ctl input{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 10px;font-size:14px;min-width:0;width:min(220px,60vw)}
+  .ctl input:focus{outline:none;border-color:var(--accent)}
+  .ctl input:disabled{opacity:.6}
+  .ctl button{cursor:pointer;border-radius:8px;padding:6px 16px;font-size:14px;font-weight:600;border:1px solid var(--accent);background:var(--accent);color:#fff}
+  .ctl button.stop{background:transparent;border-color:var(--bad);color:var(--bad)}
+  .ctl button:disabled,.btn:disabled{opacity:.5;cursor:default}
+  .ctl .err{color:var(--bad);font-size:12px}
+  #aiPanel .sess{color:var(--faint);font-size:11px}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  /* room strip: this channel's numbers */
+  .strip{display:flex;gap:18px;flex-wrap:wrap;align-items:baseline;padding:8px 16px;border-bottom:1px solid var(--line);font-size:13px;color:var(--dim);flex:none}
+
+  .strip b{color:var(--text);font-size:16px;font-variant-numeric:tabular-nums;margin-right:4px}
+
+  .banners{display:flex;flex-direction:column;gap:6px;padding:0 16px;flex:none;max-height:30vh;overflow-y:auto}
+  .banners:empty{display:none}
+  .banner{border:1px solid var(--warn);border-radius:8px;padding:6px 10px;margin-top:8px;font-size:13px;
+          background:color-mix(in srgb,var(--warn) 12%,transparent)}
+  .banner b{font-size:13px}
+  .banner.sys{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+  main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:12px;padding:12px 16px;flex:1;min-height:0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;
+        min-height:0;height:100%;position:relative}
+  @media (max-width:900px){
+    body{height:auto}
+    main{grid-template-columns:minmax(0,1fr)}
+    .card{height:70vh;min-height:320px}
+  }
+  .card h2{margin:0;padding:8px 12px;font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--dim);
+           border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;min-height:38px;flex-wrap:wrap}
+  .sp{flex:1}
+  .scroll{overflow-y:auto;flex:1;padding:6px 8px;min-height:0}
+  .filters{display:flex;gap:4px;flex-wrap:wrap}
+  .filters button{font-size:11px;padding:2px 9px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);
+                        color:var(--dim);cursor:pointer;text-transform:none;letter-spacing:0;font-family:inherit}
+  .filters button.on{color:var(--text);border-color:var(--accent)}
+  .line{padding:2px 4px;border-radius:6px;display:flex;gap:6px;align-items:baseline}
+  .line:hover{background:var(--panel2)}
+  .line.flagged{background:color-mix(in srgb,var(--bad) 9%,transparent)}
+  .line.mod{color:var(--dim);font-style:italic}
+  .line.gap{color:var(--dim);font-style:italic;font-size:12px;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);border-radius:0;cursor:default}
+  .pip{width:8px;height:8px;border-radius:50%;flex:none;transform:translateY(1px);display:inline-block}
+  .t{color:var(--faint);font-size:11px;font-variant-numeric:tabular-nums;flex:none}
+  .who{font-weight:700;cursor:pointer;flex:none;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .who:hover{text-decoration:underline}
+  .msg{flex:1;min-width:0;overflow-wrap:anywhere}
+  bdi{unicode-bidi:isolate}
+  .chip{display:inline-block;font-size:10px;padding:0 6px;border-radius:8px;border:1px solid var(--line);color:var(--dim);margin-left:3px;white-space:nowrap}
+  .chip.first{border-color:var(--info);color:var(--info)}
+  .chip.bad{border-color:var(--bad);color:var(--bad)}
+  .chip.warn{border-color:var(--warn);color:var(--warn)}
+  .lvl{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:0 6px;border-radius:8px;margin-left:3px}
+  .lvl.act{background:var(--bad);color:#111}
+  .lvl.watch{background:var(--warn);color:#111}
+  .empty{color:var(--faint);padding:10px;font-size:13px}
+  .older{display:block;margin:4px auto 8px;font-size:12px}
+  /* "N new messages" while the reader is scrolled up (LF-2) */
+  .jump{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;z-index:3;border:1px solid var(--accent);background:var(--accent);
+        color:#fff;border-radius:16px;padding:4px 14px;font-size:12px;cursor:pointer;box-shadow:0 2px 10px #0008;font-family:inherit}
+  /* watchlist: one card per person */
+  .hu{border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:8px;padding:6px 8px;margin:5px 0;cursor:pointer;background:var(--panel2)}
+  .hu.act{border-left-color:var(--bad)}
+  .hu:hover{border-color:var(--accent)}
+  .hu.group{cursor:default}
+  .hu .top{display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
+  .hu .why{font-size:12px;margin-top:2px}
+  .hu .q{font-size:12px;color:var(--dim);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .more{padding:4px 6px}
+  details.earlier summary{cursor:pointer;font-size:11px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin:10px 4px 4px}
+  .erow{font-size:12px;padding:2px 6px;cursor:pointer;display:flex;gap:6px;align-items:baseline}
+  .erow:hover{background:var(--panel2)}
+  /* drawer (user card) */
+  #drawer{position:fixed;top:0;right:0;width:min(560px,100vw);height:100vh;background:var(--panel);border-left:1px solid var(--line);
+          transform:translateX(105%);visibility:hidden;transition:transform .2s,visibility 0s .2s;z-index:20;overflow-y:auto;padding:16px}
+  #drawer.open{transform:none;visibility:visible;transition:transform .2s}
+  #drawer h3{margin:0;font-size:20px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+  #drawer section{margin:14px 0}
+  #drawer h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:1.1px;color:var(--dim)}
+  .box{border:1px solid var(--line);border-left:4px solid var(--faint);border-radius:8px;padding:7px 10px;margin-top:10px;background:var(--panel2);font-size:13px}
+  .box.act{border-left-color:var(--bad)} .box.watch{border-left-color:var(--warn)} .box.read{border-left-color:var(--accent)}
+  .upd{border:1px solid var(--info);border-radius:8px;padding:5px 10px;margin-top:8px;font-size:12px;color:var(--info)}
+  .arow{display:grid;grid-template-columns:130px 1fr 44px;gap:8px;align-items:center;font-size:13px;margin:3px 0}
+  .track{background:var(--panel2);height:10px;border-radius:5px;overflow:hidden}
+  .track i{display:block;height:100%}
+  .reason{font-size:13px;display:flex;gap:8px;margin:2px 0}
+  .reason .w{font-variant-numeric:tabular-nums;width:46px;text-align:right;flex:none}
+  .rmsg{font-size:13px;padding:4px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+  .warnbox{background:var(--panel2);border:1px solid var(--accent);border-radius:8px;padding:8px 10px;font-size:14px}
+  .close{float:right;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:8px;padding:4px 10px;cursor:pointer}
+  .btn{border:1px solid var(--accent);background:transparent;color:var(--text);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:13px;font-family:inherit}
+  .note{font-size:12px;color:var(--dim)}
+  details.sect{margin:10px 0}
+  details.sect summary{cursor:pointer;font-size:11px;text-transform:uppercase;letter-spacing:1.1px;color:var(--dim)}
+  details.sect[open] summary{margin-bottom:6px}
+  /* reclassify a message (the owner's correction; live watchlist only, never a label) */
+  .rc{border:1px solid transparent;background:transparent;color:var(--dim);border-radius:6px;padding:0 5px;margin-left:3px;cursor:pointer;font:inherit;font-size:12px;line-height:1.2}
+  .rc{opacity:.55} .line:hover .rc,.rmsg:hover .rc{opacity:1}
+  .rc:hover,.rc:focus-visible{border-color:var(--line);color:var(--text);opacity:1}
+  .chip.owner{border-style:dashed;border-color:var(--accent);color:var(--text)}
+  #rcMenu{position:fixed;z-index:40;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px;box-shadow:0 6px 24px rgba(0,0,0,.5);min-width:220px}
+  #rcMenu .h{font-size:11px;color:var(--dim);padding:2px 6px 6px;text-transform:uppercase;letter-spacing:1px}
+  #rcMenu button{display:block;width:100%;text-align:left;border:0;background:transparent;color:var(--text);padding:5px 8px;border-radius:6px;cursor:pointer;font:inherit;font-size:13px}
+  #rcMenu button:hover,#rcMenu button:focus-visible{background:var(--panel2)}
+  #rcMenu button.cur{font-weight:700}
+  #rcMenu .err{color:var(--bad);font-size:12px;padding:4px 8px}
+  #rcMenu .err.busy{color:var(--dim)}
+  #rcMenu .q{font-size:12px;color:var(--text);padding:0 6px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:320px}
+  #rcMenu button:disabled{opacity:.5;cursor:default}
+  /* the messages behind a listing (a watchlist card's reason opens them) and the owner's "bot" role (owner, 2026-11-01) */
+  .hu .why.ev{cursor:pointer;text-decoration:underline dotted var(--faint);text-underline-offset:3px}
+  .hu .why.ev:hover{color:var(--text)}
+  .evl{margin-top:6px;border-top:1px solid var(--line);padding-top:2px;cursor:default;max-height:50vh;overflow-y:auto}   /* LF3-7: 100 items stay in one card-sized box */
+  .evl .rmsg{font-size:12px;padding:3px 0}
+  .evl .rmsg:last-of-type{border-bottom:0}
+  .rolesPill{border:1px dashed var(--accent);background:transparent;color:var(--dim);border-radius:8px;padding:2px 8px;font-size:12px;cursor:pointer;font-family:inherit}   /* not a channel tab (LF3-8) */
+  .rolesPill:hover{color:var(--text)}
+  .hu .nm{cursor:pointer}
+  /* the roles list: a long name gives way, Remove never wraps (LF4-8) */
+  .rrow{display:flex;gap:8px;align-items:center}
+  .rrow b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rrow .note{flex:none;white-space:nowrap}
+  .rrow .btn{flex:none;white-space:nowrap}
+  .line.bot{color:var(--dim)}
+  .line.bot .pip{background:transparent;border:1px solid var(--line)}
+  /* touch screens have no hover: the ⋯ is a full-size, visible target (N-9, WCAG 2.5.8) */
+  @media (pointer:coarse){ .rc{min-height:24px;min-width:28px;opacity:.9} }
+  /* the AI: which model reads, and how fast, before Start (docs/DASHBOARD.md "Choosing the AI") */
+  #aiPanel{border-bottom:1px solid var(--line);padding:8px 16px;font-size:13px;color:var(--dim);flex:none;background:var(--panel)}
+  #aiPanel .sum{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+  #aiPanel .sum b{color:var(--text)}
+  #aiPanel .spec{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  #aiPanel select{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:1px 4px;font:inherit;font-size:12px}
+  #aiPanel .rowsAI{margin-top:6px;display:flex;flex-direction:column;gap:2px;max-height:34vh;overflow-y:auto}
+  #aiPanel label.r{display:grid;grid-template-columns:18px 270px 1fr auto;gap:8px;align-items:baseline;padding:3px 6px;border-radius:6px;cursor:pointer}
+  #aiPanel label.r:hover{background:var(--panel2)}
+  @media (max-width:700px){              /* phone: the name above its numbers, the button under them */
+    #aiPanel label.r{grid-template-columns:18px minmax(0,1fr)}
+    #aiPanel label.r > span:nth-of-type(n+2){grid-column:2}
+  }
+  #aiPanel label.r.sel{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+  #aiPanel label.r.off{opacity:.55;cursor:default}
+  #aiPanel .nm{color:var(--text);font-weight:600}
+  #aiPanel .num{font-variant-numeric:tabular-nums}
+  #aiPanel .k{color:var(--text);font-weight:700}
+  #aiPanel .act{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+  #aiPanel code{font-size:11px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:0 4px;color:var(--text)}
+  #aiPanel .warnT{color:var(--warn)} #aiPanel .badT{color:var(--bad)} #aiPanel .okT{color:var(--ok)}
+
+  .btn.small{font-size:11px;padding:1px 8px}
+  /* the hybrid's Review box, under the Watchlist header: the button and its time, the scope, the last press */
+  #reviewBox{display:flex;flex-direction:column;gap:4px;padding:6px 12px;border-bottom:1px solid var(--line);font-size:12px;color:var(--dim)}
+  #reviewBox[hidden]{display:none}
+  #reviewBox .rvrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  #reviewBox .rvrow > span{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+  #reviewBox label{display:inline-flex;gap:4px;align-items:center;cursor:pointer;color:var(--text)}
+  #reviewBox b{color:var(--text)}
+  #reviewBox .btn{font-size:12px;padding:2px 9px}
+  .ptitle{display:inline-flex;gap:5px;align-items:center}
+  /* an (i) beside a control with more to say (owner 2026-11-10): hover shows it, a click or Enter keeps it open below */
+  .info{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;padding:0;flex:none;
+        border:1px solid var(--dim);background:none;color:var(--dim);font:italic 700 11px/1 Georgia,"Times New Roman",serif;cursor:pointer}
+  .info:hover,.info:focus-visible,.info[aria-expanded="true"]{color:var(--text);border-color:var(--accent)}
+  .infoPop{display:block;margin-top:4px;font-weight:400;font-style:normal;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:4px 8px}
+  #reviewBox .rvrow > .infoPop{flex:1 1 100%;margin-top:0}
+  .info{margin-left:4px;vertical-align:1px}
+  footer{padding:0 16px 10px;color:var(--dim);font-size:12px;flex:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>CHATWATCH</h1>
+  <nav class="tabs" id="tabs" aria-label="Channels"></nav>
+  <div class="right">
+    <button class="rolesPill" id="rolesBtn" hidden title="chatters you marked as bots: see and undo them"></button>
+    <div class="ctl" id="ctl" hidden>
+      <span class="at">twitch.tv/</span>
+      <input id="chanInput" placeholder="channel" autocomplete="off" spellcheck="false" aria-label="Channel to watch">
+      <button id="startBtn">Start</button>
+      <span class="err" id="ctlErr" role="alert"></span>
+    </div>
+  </div>
+</header>
+<section id="aiPanel" aria-label="The AI that reads chat" hidden></section>
+<!-- the stats line (owner 2026-11-08): the status first, then this session's numbers, then any server-error pills -->
+<div class="strip" id="strip"><span class="st" id="status" role="status"><span class="dot"></span>connecting…</span><span class="stats" id="stripStats"></span><span class="errs" id="errs"></span></div>
+<div class="banners" id="banners"></div>
+<main>
+  <section class="card">
+    <h2>Live chat <span class="sp"></span>
+      <span class="filters" id="filters" role="group" aria-label="Chat filter">
+        <button data-f="all">All</button>
+        <button data-f="first">First-timers</button>
+        <button data-f="flagged" title="every message marked toxic or with a warning chip (evasion, template, ban-lookalike, Twitch flag), and everything said by people on the Watchlist">Flagged</button>
+      </span>
+    </h2>
+    <div class="scroll" id="chat"><div id="olderBox"></div><div id="rows"></div></div>
+    <button class="jump" id="jump" hidden>Jump to latest</button>
+  </section>
+  <section class="card">
+    <h2><span class="ptitle">Watchlist <span id="wlCount"></span></span></h2>
+    <div id="reviewBox" hidden></div>
+    <div class="scroll" id="pWatch"><div id="heads"></div><div id="headsMore"></div><div id="earlier"></div></div>
+  </section>
+</main>
+<footer>Reads public chat anonymously and posts nothing. Reads are probabilistic first impressions of what someone is
+  <i>doing</i> in chat, not judgements of who they are. Never show them to chatters or on stream.</footer>
+<aside id="drawer" role="dialog" aria-labelledby="dTitle" inert></aside>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const FAMCOL = {benign:"var(--benign)", mild:"var(--mild)", badfaith:"var(--badfaith)"};
+const ARCH = {
+  ordinary:["Ordinary","benign"], reactor:["Reactor","benign"], newcomer:["Newcomer","benign"],
+  asker:["Asker","benign"], supporter:["Supporter","benign"], backseater:["Backseater","mild"],
+  provocateur:["Provocateur","badfaith"], concern_troll:["Concern troll","badfaith"],
+  injector:["Topic injector","badfaith"], harasser:["Harasser","badfaith"], spammer:["Spam/bot","badfaith"]
+};
+const arch = k => ARCH[k] || [String(k), "mild"];        // an archetype added on the server must not stop the page (LF-14)
+// message flags: the ones shown as chips; every flag is in the line's tooltip
+const FLAGTXT = {first:["1st","first"], evasion:["evasion","bad"], template:["template","bad"], lookalike:["ban-lookalike","bad"],
+  "twitch-flag":["twitch flag","bad"], "new-account":["new acct","warn"], "coded-vocab":["coded vocab","warn"],
+  distress:["possible distress","first"]};
+const FLAGGED = ["evasion", "template", "lookalike", "twitch-flag"];
+const LVTXT = {act: "likely", watch: "possible"};   // keys stay act/watch; wording is a read, not an instruction
+const SHOW_N = 12;                                   // watchlist cards before "+N more"
+const PANEL_MAX = 40;                                // the server lists at most this many cards
+const EV_KEPT = 100;                                // the flagged or corrected messages kept behind a listing (engine.py)
+const CH_LINES = 1500;                               // kept per channel (LF-11)
+const ROWS_FOLLOW = 300, ROWS_PAGE = 200;            // rows shown while following; rows added by "Show older"
+
+let channel = "", channels = [], filter = "all", mode = "", showAll = false;
+let running = false, stoppedAt = null;
+const buf = {}, alerts = [], rooms = {}, lastTs = {};
+try { filter = localStorage.getItem("cw_filter") || "all"; } catch(e){}
+// older filters: "watch" (before 11-01) and "toxic" (2026-11-10: Flagged now holds every toxic line too)
+if (filter === "watch" || filter === "toxic") filter = "flagged";
+const chan = ch => buf[ch] || (buf[ch] = {lines: []});
+
+// "now" for ages: the wall clock live (or the moment of Stop), the newest message's time in a replay
+const nowMs = () => stoppedAt ? stoppedAt : mode === "live" || !lastTs[channel] ? Date.now() : lastTs[channel];
+function ago(ts){ const s = Math.max(0, (nowMs() - ts) / 1000);
+  return s < 60 ? "now" : s < 3600 ? `${Math.floor(s/60)} min ago` : s < 172800 ? `${Math.floor(s/3600)} h ago` : `${Math.floor(s/86400)} days ago`; }
+function hhmm(ts){ return new Date(ts).toTimeString().slice(0, 8); }
+function noticeMap(ch){            // user_id -> notice, for this channel's watchlist
+  const r = rooms[ch], m = {};
+  for (const n of ((r && r.notices && r.notices.items) || [])){
+    m[n.user_id] = n;
+    for (const g of n.group || []) m[g.user_id] = {...n, level: g.level, why: g.why || n.why};   // a member's own reason (LF-13)
+  }
+  return m;
+}
+const TOXCOL = {high:"var(--bad)", medium:"var(--warn)", low:"var(--mild)", none:"var(--faint)"};
+// the level a read counts at: the server adds counted_level when it differs from the read's own (S1: a keyword slur the
+// LLM re-read as "none" still counts; audit LF3-2). The chip, the pip, the Flagged filter and the dropdown all use it
+const lvOf = t => (t && (t.counted_level || t.level)) || "none";
+const isTox = t => lvOf(t) !== "none";
+const toxColor = t => TOXCOL[lvOf(t)] || "var(--faint)";
+function toxChip(t){
+  if (t && t.source === "owner"){                       // the owner's correction: always shown, never mistaken for the tool's
+    const a = t.auto || {}, kinds = (t.kinds || []).join(", ");
+    const tip = `set by you; the tool read it as ${a.level || "none"}${(a.kinds || []).length ? " (" + a.kinds.join(", ") + ")" : ""}`;
+    return `<span class="chip owner" title="${esc(tip)}">${t.level === "none" ? "not toxic" : esc(t.level) + (kinds ? ` · ${esc(kinds)}` : "")} · set by you</span>`;
+  }
+  const lv = lvOf(t);
+  if (lv === "none") return "";
+  const cls = lv === "high" ? "bad" : "warn", held = lv !== (t.level || "none");      // held: S1
+  const tip = held ? `keyword slur: it counts as ${lv}; the local LLM read it as ${t.level || "none"}, which cannot clear a slur`
+    : t.source === "llm" ? `read by the local LLM; keyword layer said: ${(t.layer||{}).level||"none"}` : `toxicity ${t.score}`;
+  const kinds = ((t.kinds || []).length ? t.kinds : held ? (t.layer || {}).kinds || [] : []).slice(0, 2).join(", ");
+  const parts = [esc(lv) + (kinds ? ` · ${esc(kinds)}` : "") + (t.target ? ` → ${esc(t.target)}` : "")];
+  if (held) parts.push("keyword slur"); else if (t.source === "llm") parts.push("LLM");
+  return `<span class="chip ${cls}" title="${esc(tip)}">${parts.join(" · ")}</span>`;
+}
+function flagChips(flags){ return (flags||[]).filter(f => FLAGTXT[f]).map(f => `<span class="chip ${FLAGTXT[f][1]}">${esc(FLAGTXT[f][0])}</span>`).join(""); }
+const OWNER_TIP = "your own correction (⋯) is among the reasons";
+const lvlTag = n => n ? `<span class="lvl ${esc(n.level)}" title="on the watchlist: ${esc((n.why || []).join("; "))}${n.owner ? " · " + OWNER_TIP : ""}">${LVTXT[n.level] || esc(n.level)}</span>` : "";
+const ownerChip = n => n && n.owner ? `<span class="chip owner" title="${esc(OWNER_TIP + (n.quote_owner ? "; the quoted message is classed as you set it" : ""))}">set by you</span>` : "";
+const cntTitle = c => [c.act ? `${c.act} likely` : "", c.watch ? `${c.watch} possible` : ""].filter(Boolean).join(", ");
+function counts(c){ c = {act: Number((c || {}).act) || 0, watch: Number((c || {}).watch) || 0}; const t = cntTitle(c);   // N-12
+  return t ? `<span title="${t}" aria-label="${t}">${c.act?`<span class="cnt act">${c.act}</span>`:""}${c.watch?`<span class="cnt watch">${c.watch}</span>`:""}</span>` : ""; }
+// Twitch name colours, lifted when too dark to read on this background (goes into a style attribute)
+const nameCache = new Map();
+function nameColor(c){
+  if (!/^#[0-9a-f]{6}$/i.test(c || "")) return "var(--info)";
+  if (nameCache.has(c)) return nameCache.get(c);
+  let [r, g, b] = [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+  const lum = (r, g, b) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  for (let i = 0; i < 6 && lum(r, g, b) < 0.45; i++) [r, g, b] = [r, g, b].map(v => Math.round(v + (255 - v) * 0.3));
+  if (nameCache.size > 2000) nameCache.clear();
+  const out = "#" + [r, g, b].map(v => v.toString(16).padStart(2, "0")).join("");
+  nameCache.set(c, out);
+  return out;
+}
+function roomAlertText(a){
+  if (a.kind === "coordinated") return [`Possible coordinated template`, `${esc(a.accounts)} new accounts posting “${esc(a.text)}”`];
+  if (a.kind === "pileon") return [`Possible pile-on`, `${Math.round((a.first_timer_share||0)*100)}% of messages in the last ${esc(a.window_min)} min are from first-time chatters (${esc(a.first_timer_msgs)}); ${esc(a.hostile_first_msgs)} hostile first messages.`];
+  if (a.kind === "wave") return [`Possible wave of brand-new accounts`, `${esc(a.new_accounts)} accounts under a week old chatted for the first time within 30 s` +
+    `${a.random_names?` (${esc(a.random_names)} with machine-like names)`:""}${a.with_friction?`, ${esc(a.with_friction)} hostile`:""}${a.declared_raid?" during a declared raid":" with no declared raid"}.`];
+  if (a.kind === "lookalike") return [`Possible ban-evasion lookalike`, `${esc(a.login)} resembles recently banned ${esc(a.resembles)}: “${esc(a.text)}”`];
+  return [`Possible room warning (${esc(a.kind)})`, esc(a.text || "")];
+}
+
+// ---------------------------------------------------------------- interaction guards (LF-1)
+// A press, a text selection or a pointer that is aiming at the chat holds every redraw, so a click lands
+// on the element it started on and a selection survives. Panels are redrawn only when their HTML changed.
+let pressed = false, aimUntil = 0;
+document.addEventListener("pointerdown", () => { pressed = true; }, true);
+for (const ev of ["pointerup", "pointercancel"]) document.addEventListener(ev, () => { pressed = false; setTimeout(kick, 0); }, true);
+const selecting = () => { const s = getSelection(); return s && !s.isCollapsed && s.rangeCount && document.querySelector("main").contains(s.anchorNode); };
+const holding = () => pressed || selecting() || !!$("rcMenu");     // an open ⋯ menu holds them too (N-2)
+let kickTimer = 0;
+function kick(){ clearTimeout(kickTimer); schedule(); }
+
+// ---------------------------------------------------------------- chat (LF-1, LF-2): appended, never rebuilt under the reader
+const chatBox = $("chat"), rowsBox = $("rows");
+let following = true, unseen = 0, pending = [], shown = [];   // shown: records in #rows, oldest first
+// N-1: a background tab gets no animation frames, so pending would grow for hours. Past ROWS_FOLLOW it is dropped
+// (the lines are in the channel buffer) and the next render rebuilds the chat from that buffer
+let overflow = false;
+function queueRow(r){ if (!following) unseen++; if (overflow) return; pending.push(r);
+  if (pending.length > ROWS_FOLLOW){ pending = []; overflow = true; } }
+function want(r, NM){
+  if (r.channel !== channel) return false;
+  if (r.type === "gap") return true;                            // the hole is in every filter's list (LF5-1)
+  if (r.type === "modaction" || r.type === "bot_msg") return filter === "all";
+  return filter === "all" || (filter === "first" && (r.flags || []).includes("first")) || (filter === "flagged" && isFlagged(r, NM));
+}
+// Flagged (owner 2026-11-10: one tab for everything flagged; the chip says why): a toxic line at any level, a warning chip,
+// or anyone on the Watchlist
+const isFlagged = (r, NM) => isTox(r.toxicity) || (r.flags || []).some(f => FLAGGED.includes(f)) || !!NM[r.user_id];
+const gapText = (g, what) => `${hhmm(g.from)}–${hhmm(g.to)} not connected: ${what} from then aren't shown${mode === "live" ? "" : " (your clock)"}`;
+function rowHTML(r, NM){
+  if (r.type === "gap") return `<div class="line gap" data-id="gap:${esc(r.from)}"><span class="t"></span><span>${esc(gapText(r, "lines"))}</span></div>`;
+  if (r.type === "modaction") return `<div class="line mod" data-id="mod:${esc(r.ts)}:${esc(r.login)}"><span class="t">${hhmm(r.ts)}</span>
+      <span${r.user_id?` class="who" tabindex="0" role="button" data-uid="${esc(r.user_id)}"`:""}>⛔ <bdi>${esc(r.login)}</bdi></span>
+      <span>${r.kind==="deleted"?"had a message deleted":r.kind==="ban"?"was banned":"was timed out ("+esc(r.detail)+")"} <span class="note">(context only)</span></span></div>`;
+  if (r.type === "bot_msg") return `<div class="line bot" data-id="${esc(r.id)}" data-u="${esc(r.user_id)}" title="you marked them a bot: not scored or listed">
+      <span class="t">${hhmm(r.ts)}</span><span class="pip"></span>
+      <span class="who" tabindex="0" role="button" style="color:${nameColor(r.color)}" data-uid="${esc(r.user_id)}"><bdi>${esc(r.display)}</bdi></span>
+      <span class="msg"><bdi>${esc(r.text)}</bdi> <span class="chip owner">bot · set by you</span></span></div>`;
+  const n = NM[r.user_id];
+  const tip = [(r.top||[]).map(t => arch(t[0])[0]+" "+Math.round(t[1]*100)+"%").join(" · "), (r.flags||[]).join(", ")].filter(Boolean).join(" | ");
+  return `<div class="line${n && n.level === "act" ? " flagged" : ""}" data-id="${esc(r.id)}" data-u="${esc(r.user_id)}" title="${esc(tip)}">
+      <span class="t">${hhmm(r.ts)}</span>
+      <span class="pip" title="message toxicity" style="background:${toxColor(r.toxicity)}"></span>
+      <span class="who" tabindex="0" role="button" style="color:${nameColor(r.color)}" data-uid="${esc(r.user_id)}"><bdi>${esc(r.display)}</bdi></span>
+      <span class="msg">${r.notice?`<span class="note">[${esc(r.notice)}]</span> `:""}<bdi>${esc(r.text)}</bdi> <span class="tc">${toxChip(r.toxicity)}</span>${rcBtn(r.channel, r.user_id, r.id, r.toxicity)}<span class="lv">${lvlTag(n)}</span>${flagChips(r.flags)}</span>
+    </div>`;
+}
+const atBottom = () => chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 40;
+function emptyChat(){
+  return `<div class="empty">${channel ? (stoppedAt ? "Stopped." : "Waiting for chat…") : mode === "live" ? "Type a channel above and press Start." : "Waiting for chat…"}</div>`;
+}
+function rebuildChat(){           // only on a channel or filter change, "Jump to latest", or scrolling back down
+  const NM = noticeMap(channel), lines = channel ? chan(channel).lines : [];
+  const rows = [];
+  for (let i = lines.length - 1; i >= 0 && rows.length < ROWS_FOLLOW; i--) if (want(lines[i], NM)) rows.push(lines[i]);
+  shown = rows.reverse();
+  pending = []; unseen = 0; overflow = false;
+  rowsBox.innerHTML = shown.length ? shown.map(r => rowHTML(r, NM)).join("") : emptyChat();
+  chatBox.scrollTop = chatBox.scrollHeight;
+  following = true;
+  renderOlder(); renderJump();
+}
+function appendChat(){
+  if (!pending.length && !overflow) return;
+  if (!following){ return renderJump(); }                       // frozen: the reader keeps their place
+  if (holding() || performance.now() < aimUntil){ clearTimeout(kickTimer); kickTimer = setTimeout(kick, 250); return; }
+  if (overflow) return rebuildChat();                           // more arrived than a page shows: rebuild (N-1)
+  const NM = noticeMap(channel), add = pending; pending = [];
+  if (!shown.length) rowsBox.innerHTML = "";
+  rowsBox.insertAdjacentHTML("beforeend", add.map(r => rowHTML(r, NM)).join(""));
+  for (const r of add) shown.push(r);                           // no spread: a long list overflowed the stack (N-1)
+  const extra = shown.length - ROWS_FOLLOW;
+  if (extra > 0){ shown.splice(0, extra); for (let i = 0; i < extra && rowsBox.firstElementChild; i++) rowsBox.firstElementChild.remove(); }
+  chatBox.scrollTop = chatBox.scrollHeight;
+  renderOlder();
+}
+function renderJump(){
+  $("jump").hidden = following || !unseen;
+  $("jump").textContent = unseen ? `${unseen} new message${unseen > 1 ? "s" : ""} · Jump to latest` : "Jump to latest";
+}
+function olderCount(){
+  if (!channel || !shown.length) return 0;
+  const lines = chan(channel).lines, first = shown[0], NM = noticeMap(channel);
+  let n = 0; for (const r of lines){ if (r === first) break; if (r.type !== "gap" && want(r, NM)) n++; }
+  return n;
+}
+function renderOlder(){
+  const n = olderCount();
+  const html = n ? `<button class="btn older" id="olderBtn">Show older messages (${n > ROWS_PAGE ? ROWS_PAGE + " of " + n : n})</button>` : "";
+  if ($("olderBox").dataset.html !== html){ $("olderBox").innerHTML = html; $("olderBox").dataset.html = html; }
+}
+function showOlder(){             // prepend older lines, keeping the reader's place
+  const lines = chan(channel).lines, NM = noticeMap(channel), first = shown[0], add = [];
+  let i = lines.indexOf(first) - 1;
+  for (; i >= 0 && add.length < ROWS_PAGE; i--) if (want(lines[i], NM)) add.push(lines[i]);
+  if (!add.length) return;
+  add.reverse();
+  const h0 = chatBox.scrollHeight, top0 = chatBox.scrollTop;
+  rowsBox.insertAdjacentHTML("afterbegin", add.map(r => rowHTML(r, NM)).join(""));
+  shown.unshift(...add);
+  chatBox.scrollTop = top0 + (chatBox.scrollHeight - h0);
+  renderOlder();
+}
+chatBox.addEventListener("scroll", () => {
+  const b = atBottom();
+  if (b && !following){ following = true; if (unseen || shown.length > ROWS_FOLLOW) rebuildChat(); else { appendChat(); renderJump(); } }
+  else if (!b && following){ following = false; renderJump(); }
+}, {passive: true});
+chatBox.addEventListener("pointermove", () => { aimUntil = performance.now() + 1200; }, {passive: true});
+$("jump").onclick = () => rebuildChat();
+function updateRows(id, fn){ const el = rowsBox.querySelector(`[data-id="${CSS.escape(String(id))}"]`); if (el) fn(el); }
+let lastNMKey = "";
+function refreshTags(){           // watchlist tags in chat: only the tags change, never the row under the pointer
+  const NM = noticeMap(channel);
+  const key = Object.keys(NM).sort().map(k => k + NM[k].level).join("|");
+  if (key === lastNMKey) return;
+  lastNMKey = key;
+  if (filter === "flagged" && following && !holding()){ rebuildChat(); return; }
+  for (const el of rowsBox.querySelectorAll(".line[data-u]")){
+    const n = NM[el.dataset.u], html = lvlTag(n), lv = el.querySelector(".lv");
+    if (lv && lv.innerHTML !== html) lv.innerHTML = html;
+    el.classList.toggle("flagged", !!(n && n.level === "act"));
+  }
+}
+
+// ---------------------------------------------------------------- panels: drawn only when their HTML changed
+function setHTML(el, html){ if (el._html !== html){ el.innerHTML = html; el._html = html; } }
+function reconcile(box, items){   // keyed: an unchanged card keeps its element (and the pointer on it)
+  const want = new Map(items.map(it => [it.key, it.html]));
+  for (const el of [...box.children]) if (want.get(el.dataset.key) !== el._html) el.remove();
+  const have = new Map([...box.children].map(el => [el.dataset.key, el]));
+  items.forEach((it, i) => {
+    let el = have.get(it.key);
+    if (!el){ const t = document.createElement("template"); t.innerHTML = it.html.trim(); el = t.content.firstElementChild;
+              el.dataset.key = it.key; el._html = it.html; }
+    if (box.children[i] !== el) box.insertBefore(el, box.children[i] || null);
+  });
+}
+function safe(name, fn){ try { fn(); } catch(e){ console.error(`panel ${name}:`, e); } }   // one bad record stops one panel at most
+
+// the stats line after the status (owner 2026-11-08): this session's numbers, no channel name (one channel at a time;
+// the tab shows which). After a Stop, a finished replay or while the server is gone: why the lists stand still
+function renderStrip(){
+  const R = rooms[channel];
+  setHTML($("stripStats"), !channel ? "" : offlineAt !== null ? `<span class="late">server not reachable since ${hhmm(offlineAt)}: the lists below are as they were then</span>`
+    : stoppedAt ? `<span>the lists below are as they were at Stop</span>`
+    : mode === "replay finished" ? `<span>the lists below are as they were at the replay's last message</span>`
+    : !R ? `<span>waiting for chat…</span>${aiBuffer()}` : `
+    <span><b>${esc(R.msgs_per_min)}</b>msgs / min</span>${aiBuffer()}
+    <span><b>${esc((R.chatters || 0).toLocaleString())}</b>chatters this session</span>
+    <span title="chatters whose first message ever in this channel came since Start"><b>${esc((R.first_timers_session ?? 0).toLocaleString())}</b>first-timers this session</span>`);
+}
+// the AI's buffer beside the chat rate (owner 2026-11-07: "feedback that says what the buffer is ... as the buffer is
+// processed when the model is swapped back to the live model, we can see the buffer tick down"): the lossless queue's
+// waiting reads and lines, how far behind its oldest item is, and while a review batch holds the live AI, that it is
+// paused; marked when a person read or flagged line is over 10 min late or a call is being retried. No catch-up time
+// because no call has been timed yet is "measuring speed", not "falling behind" (audit 2026-11-10 QL5: the server's
+// catchup_state estimate / measuring / behind / idle; a server without it reads as before)
+function aiBuffer(){
+  const q = (lastStatus || {}).llm_queue;
+  if (!q || !(q.open || q.finishing)) return "";
+  const n = (q.reads || 0) + (q.lines || 0), late = q.behind_hi_s > 600 || !!q.retrying;
+  const cu = q.catchup_s != null, measuring = !cu && q.catchup_state === "measuring";
+  const tail = q.retrying ? " · retrying" : q.held ? " · live AI paused for the review" : !n ? " · up to date"
+    : cu ? ` · caught up in ~${secs(q.catchup_s)}` : measuring ? " · measuring speed" : " · falling behind";
+  const t = [`AI work waiting: ${q.reads || 0} person/alert reads and ${q.lines || 0} message re-reads`,
+             n ? `the oldest person read or flagged line has waited ${secs(q.behind_hi_s || 0)}` : "",
+             n ? (cu ? `caught up in about ${secs(q.catchup_s)} at this rate` : measuring ? "no catch-up time yet: the AI's speed is still being measured" : "falling behind at this rate") : "",
+             q.aged_out ? `${q.aged_out.toLocaleString()} low-priority re-reads aged out since Start (older than 15 min)` : "",
+             q.retrying || ""].filter(Boolean).join("; ");
+  return `<span class="${late ? "late" : ""}" data-ai-buffer title="${esc(t)}"><b>${n.toLocaleString()}</b>AI buffer${n ? ` · ${secs(q.behind_s || 0)} behind` : ""}${tail}</span>`;
+}
+function renderBanners(){
+  const R = rooms[channel], out = [];
+  if (llmFailing) out.push(`<div class="banner sys"><b>LLM reads failing</b> · ${esc(llmFailing)}</div>`);
+  if (R && R.raid) out.push(`<div class="banner">Raid from <b>${esc(R.raid.from)}</b> (${esc(R.raid.viewers)} viewers): first messages are probably raiders</div>`);
+  // one banner per kind, the newest, with how many in the last 30 min (LF-6)
+  const byKind = new Map();
+  for (const a of alerts) if (a.channel === channel && a.kind !== "badfaith" && nowMs() - a.ts < 30*60*1000){
+    const k = byKind.get(a.kind); byKind.set(a.kind, {a, n: (k ? k.n : 0) + 1}); }
+  for (const {a, n} of [...byKind.values()].sort((x, y) => y.a.ts - x.a.ts)){ const [h, d] = roomAlertText(a);
+    out.push(`<div class="banner"><b>${h}</b>${n > 1 ? ` <span class="note">×${n} in 30 min</span>` : ""} <span class="t">${hhmm(a.ts)}</span> · ${d}</div>`); }
+  setHTML($("banners"), out.join(""));
+}
+const reviewOf = uid => { for (let i = alerts.length - 1; i >= 0; i--){ const a = alerts[i];
+  if (a.channel === channel && a.user_id === uid && a.review && !a.review.error) return a.review; } return null; };
+function cardHTML(n){
+  if (n.group) return `<div class="hu group ${esc(n.level)}">
+      <div class="top"><span class="lvl ${esc(n.level)}">${LVTXT[n.level] || ""}</span><b>${Number(n.group.length) || 0} people posted this</b>${ownerChip(n)}
+        <span class="sp"></span><span class="t">${ago(n.since)}</span></div>
+      <div class="q">“<bdi>${esc(n.quote)}</bdi>”</div>
+      <div class="why">${(n.why || []).map(esc).join(" · ")}</div>
+      <div style="margin-top:3px">${n.group.map(g => `<span class="chip ${g.level==="act"?"bad":"warn"}" tabindex="0" role="button" data-uid="${esc(g.user_id)}" style="cursor:pointer" title="${esc(LVTXT[g.level])}: ${esc((g.why || n.why || []).join("; "))}${g.owner ? " · " + OWNER_TIP : ""}"><bdi>${esc(g.display)}</bdi></span>`).join(" ")}</div>
+    </div>`;
+  const rv = n.review || reviewOf(n.user_id);
+  const open = evIsOpen(channel, n.user_id);
+  // the card is a group, not a button: it holds the reason and the dropdown's ⋯ (LF3-5). A click anywhere on it still
+  // opens the user card; the keyboard reaches it through the name
+  return `<div class="hu ${esc(n.level)}" role="group" aria-label="${esc(n.display)}" data-uid="${esc(n.user_id)}">
+      <div class="top"><span class="lvl ${esc(n.level)}">${LVTXT[n.level] || ""}</span><b class="nm" tabindex="0" role="button" data-uid="${esc(n.user_id)}" title="open their card"><bdi>${esc(n.display)}</bdi></b>
+        ${n.role?`<span class="chip">${esc(n.role)}</span>`:""}${n.first?'<span class="chip first">new here</span>':""}${ownerChip(n)}
+        ${rv && rv.label?`<span class="chip ${rv.label==="bad_faith"?"bad":rv.label==="good_faith"?"":"warn"}" title="${esc(rv.rationale)}">LLM: ${esc(String(rv.label).replace("_"," "))}</span>`:""}
+        <span class="sp"></span><span class="t">${ago(n.since)}</span></div>
+      <div class="why ev" tabindex="0" role="button" data-ev="${esc(n.user_id)}" aria-expanded="${open}" title="the messages behind this">${(n.why || []).map(esc).join(" · ")} <span class="note">${open ? "▴" : "▾"}</span></div>
+      ${open ? evListHTML(channel, n.user_id) : `<div class="q">“<bdi>${esc(n.quote)}</bdi>”</div>`}
+    </div>`;
+}
+
+// ---------------------------------------------------------------- the messages behind a listing (owner, 2026-11-01)
+// Each watchlist card's reason opens the messages that put the chatter there, each with its ⋯, older ones included:
+// the server keeps them past the 40 recent messages (GET /api/evidence), and since 2026-11-07 the rule reads them too
+// (engine FLAGS_PERSIST: a flag stands until a review or the owner clears it), so only a cleared row is tagged.
+let evOpen = null;                                   // {ch, uid} of the open dropdown
+const evData = {};                                   // "ch\nuid" -> the server's answer, or {error}
+const evKey = (ch, uid) => ch + "\n" + uid;
+const evIsOpen = (ch, uid) => !!evOpen && evOpen.ch === ch && evOpen.uid === uid;
+const evTox = m => isTox(m.toxicity);
+function evTag(m){                                  // a message that counts now carries no tag (EV_NOTE says so)
+  if (m.counted) return "";
+  if (!evTox(m)) return `<span class="chip" title="it no longer counts as toxic">not toxic now</span> `;
+  return "";                                          // a flag counts at any age (engine FLAGS_PERSIST, owner 2026-11-07)
+}
+function evRows(ch, uid, items){                      // newest first, like the card's recent messages
+  return items.slice().reverse().map(m => `<div class="rmsg"><span class="pip" style="background:${toxColor(m.toxicity)}"></span>
+      <span class="t">${hhmm(m.ts)}</span> ${evTag(m)}<bdi>${esc(m.text)}</bdi> <span class="tc">${toxChip(m.toxicity)}</span>${m.id != null ? rcBtn(ch, uid, m.id, m.toxicity) : ""}</div>`).join("");
+}
+const EV_NOTE = `Untagged messages count now: a flag stands until a review or your ⋯ clears it, however old (up to ${EV_KEPT} kept). Cleared ones stay listed so you can undo them.`;
+function evListHTML(ch, uid){
+  const d = evData[evKey(ch, uid)];
+  const body = !d ? `<div class="note">Loading…</div>` : d.error ? `<div class="note">Couldn't load them: ${esc(d.error)}</div>`
+    : !(d.items || []).length ? `<div class="note">No messages held for them (the listing rests on the LLM's read or an alert).</div>`
+    : evRows(ch, uid, d.items) + `<div class="note" style="margin-top:3px">${EV_NOTE}</div>`;
+  return `<div class="evl" data-evbox="1">${body}</div>`;
+}
+async function loadEv(ch, uid){
+  let j;
+  try {
+    const r = await fetch(`/api/evidence?channel=${encodeURIComponent(ch)}&uid=${encodeURIComponent(uid)}`);
+    j = await r.json().catch(() => ({}));
+    if (!r.ok) j = {error: j.error || `HTTP ${r.status}`};
+  } catch(e){ j = {error: "the server is not reachable"}; }
+  evData[evKey(ch, uid)] = j;
+}
+function evPatch(r){                                 // a message's new read (LF3-1): the dropdown's copy follows it, so a
+  for (const d of Object.values(evData)){            // re-render never puts the old read back
+    if (!d || d.channel !== r.channel || String(d.user_id) !== String(r.user_id)) continue;
+    for (const it of d.items || []) if (String(it.id) === String(r.id)){ it.toxicity = r.toxicity; it.counted = isTox(r.toxicity); }
+  }
+}
+// while a dropdown is open it is fetched again (at most every EV_REFRESH_MS) when its chatter posts or one of their
+// messages gets a new read: new toxic messages show, and "counts now" follows messages leaving the recent ones (LF3-1)
+const EV_REFRESH_MS = 2000;
+let evTimer = 0;
+function evStale(ch, uid){
+  if (!evIsOpen(ch, uid) || evTimer) return;
+  evTimer = setTimeout(async () => {
+    evTimer = 0;
+    if (!evIsOpen(ch, uid)) return;
+    await loadEv(ch, uid);
+    if (evIsOpen(ch, uid)) schedule();               // drawn by render(), which waits while a ⋯ menu is open
+  }, EV_REFRESH_MS);
+}
+async function toggleEv(uid){
+  const ch = channel;
+  if (evIsOpen(ch, uid)){ evOpen = null; renderWatch(); evFocus(uid); return; }
+  evOpen = {ch, uid}; delete evData[evKey(ch, uid)];
+  renderWatch(); evFocus(uid);
+  await loadEv(ch, uid);
+  if (evIsOpen(ch, uid)){ if (holding()) schedule(); else { renderWatch(); evFocus(uid); } }
+}
+function evFocus(uid, rc){                            // the card was redrawn: focus goes back where it was
+  const box = $("heads"), sel = rc != null ? `.rc[data-rc="${CSS.escape(String(rc))}"]` : `[data-ev="${CSS.escape(String(uid))}"]`;
+  const el = box.querySelector(sel); if (el && !holding()) el.focus({preventScroll: true});
+}
+function focusSel(box, el){                         // a selector for the focused control inside a watchlist card, or null
+  const c = el && el !== box && box.contains(el) ? el.closest("[data-key]") : null;
+  if (!c) return null;
+  const k = `[data-key="${CSS.escape(c.dataset.key)}"]`;
+  for (const a of ["rc", "ev", "uid"]) if (el.dataset[a] !== undefined)
+    return `${k} [data-${a}="${CSS.escape(el.dataset[a])}"]`;
+  return null;
+}
+function renderWatch(){
+  const R = rooms[channel];
+  const N = (R && R.notices) || {items: [], counts: {act: 0, watch: 0}, more: 0};
+  const items = N.items || [];
+  const cards = showAll ? items : items.slice(0, SHOW_N);
+  const heads = $("heads"), fsel = focusSel(heads, document.activeElement);
+  reconcile(heads, cards.map(n => ({key: (n.group ? "g:" : "u:") + n.user_id, html: cardHTML(n)})));
+  if (fsel && !heads.contains(document.activeElement)){       // the focused card was redrawn: focus the same control (LF3-4)
+    const el = heads.querySelector(fsel); if (el) el.focus({preventScroll: true}); }
+  const notShown = items.length - cards.length;
+  setHTML($("headsMore"), !items.length ? `<div class="empty">${stoppedAt ? "Stopped." : "Nobody on the watchlist right now. That's the normal state. A one-off toxic message is marked in chat only."}</div>`
+    : `<div class="more">${notShown ? `<button class="btn" id="showAllBtn">+${notShown} more (less severe or older)</button>`
+        : showAll && items.length > SHOW_N ? `<button class="btn" id="showAllBtn">Show fewer</button>` : ""}
+       ${N.more ? `<div class="note" style="margin-top:4px">${Number(N.more) || 0} more not listed (the panel lists at most ${PANEL_MAX}); they are in the tab's count.</div>` : ""}</div>`);
+  const E = (R && R.notices_earlier) || [];
+  const wasOpen = !!document.querySelector("#earlier details[open]");
+  setHTML($("earlier"), E.length ? `<details class="earlier" ${wasOpen?"open":""}><summary>Earlier this session (${E.length}${E.length>=30?"+":""})</summary>
+    ${E.map(n => `<div class="erow" tabindex="0" role="button" data-uid="${esc(n.user_id)}"><span class="lvl ${esc(n.level)}">${LVTXT[n.level] || ""}</span>
+      <b><bdi>${esc(n.display)}</bdi></b><span class="note">${esc((n.why || [])[0])}</span><span class="sp"></span><span class="t">${ago(n.last_seen)}</span></div>`).join("")}</details>` : "");
+}
+function renderCounts(){
+  const R = rooms[channel];
+  setHTML($("wlCount"), counts(((R && R.notices) || {}).counts));
+}
+function renderTabs(){            // only when it changed: a tab redrawn under the pointer can lose the click
+  setHTML($("tabs"), channels.map(c => { const N = (rooms[c] && rooms[c].notices) || {counts: {}};
+    return `<button class="tab ${c===channel?"on":""} ${stoppedAt?"stopped":offlineAt !== null?"stale":""}" data-ch="${esc(c)}" aria-pressed="${c===channel}">#${esc(c)}${counts(N.counts)}</button>`; }).join(""));
+}
+function renderFilters(){
+  document.querySelectorAll("#filters button").forEach(b => { b.classList.toggle("on", b.dataset.f === filter); b.setAttribute("aria-pressed", b.dataset.f === filter); });
+}
+
+let dirty = false;
+function schedule(){ if (!dirty){ dirty = true; requestAnimationFrame(() => { dirty = false; render(); }); } }
+function render(){
+  if (holding()){ clearTimeout(kickTimer); kickTimer = setTimeout(kick, 250); return; }
+  if (toxRebuild && filter === "flagged" && following && performance.now() < aimUntil){ clearTimeout(kickTimer); kickTimer = setTimeout(kick, 250); }
+  else if (toxRebuild){ toxRebuild = false;                     // a line turned toxic under the Flagged filter (LF4-5)
+    if (filter === "flagged"){ if (following) safe("chat", rebuildChat); else { unseen++; renderJump(); } } }
+  safe("chat", appendChat);
+  safe("tags", refreshTags);
+  safe("strip", renderStrip);
+  safe("banners", renderBanners);
+  safe("watchlist", renderWatch);
+  safe("counts", renderCounts);
+  safe("tabs", renderTabs);
+  safe("status", renderStatus);
+  if (aiLater) safe("ai", aiRedraw);                          // held during a press or typing (FE-2)
+  if (reviewLater) safe("review", reviewRedraw);
+}
+function switchView(){            // channel or filter changed: everything for the new view
+  lastNMKey = "";
+  safe("chat", rebuildChat);
+  render();
+}
+
+// ---------------------------------------------------------------- status and server errors (LF-7, LF-17, LB-3)
+let lastStatus = {}, prevStats = null, llmFailing = "";
+const ERRS = {session_log_errors: "session log failing", session_close_errors: "session not closed cleanly",
+  save_errors: "state not saved", raw_log_errors: "raw chat not recorded", event_errors: "messages skipped on errors",
+  flusher_errors: "server errors", reviewer_errors: "server errors", tox_batcher_errors: "server errors",
+  ui_records_dropped: "some lines not shown (the page fell behind)",
+  ui_clients_dropped: "a page was cut off (too slow or gone)",   // LB-5: its socket closed; it reconnects and marks the gap (LF5-1)
+  override_log_errors: "corrections not recorded",    // N-3: data/sessions/owner_overrides.jsonl could not be written
+  role_save_errors: "roles not saved"};               // data/sessions/owner_roles.json could not be written
+const errSeen = {};               // label -> {at, counts}
+function noteStats(st){
+  if (!st) return;
+  const now = Date.now();
+  if (prevStats){
+    for (const [k, label] of Object.entries(ERRS)) if ((st[k] || 0) > (prevStats[k] || 0))
+      errSeen[label] = {at: now, n: (errSeen[label] ? errSeen[label].n : 0) + (st[k] - (prevStats[k] || 0))};
+    const rose = k => (st[k] || 0) > (prevStats[k] || 0);
+    if (rose("llm_person_errors") || rose("llm_tox_errors")) llmErrAt = now;
+    if (rose("llm_person_reads") || rose("llm_tox_windows")) llmOkAt = now;
+  }
+  prevStats = st;
+  llmFailing = llmErrAt && now - llmErrAt < 3*60*1000 && llmOkAt < llmErrAt
+    ? "the local LLM's reads are returning errors. Meanwhile, chatters whose person read failed are judged by the older rule (no LLM) for “possible”; “likely” is unaffected." : "";
+}
+let llmErrAt = 0, llmOkAt = 0;
+// the lossless LLM work queue (serve.Hub._llm_status): chat rate, what waits and how far behind its oldest item is
+function secs(s){ return s < 90 ? `${Math.round(s)} s` : s < 5400 ? `${Math.round(s/60)} min` : `${(s/3600).toFixed(1)} h`; }
+function dur(ms){ const m = Math.floor(ms / 60000); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; }
+// the status, first on the stats line (owner 2026-11-08): the dot and its word, how long the session has run
+function renderStatus(){
+  const r = lastStatus, off = offlineAt !== null;
+  const fin = r.stopping && r.llm_queue && r.llm_queue.finishing;
+  const ran = r.started_at ? (stoppedAt || Date.now()) - r.started_at : null;
+  // the socket is closed: the last status is kept for the button and the pill, the line says so (LF4-1)
+  const st = off ? "offline · reconnecting…"
+           : mode === "live" ? (fin ? `stopping: finishing ${(r.llm_queue.reads + r.llm_queue.lines).toLocaleString()} AI reads…`
+                               : r.stopping ? "stopping…" : r.running ? (r.connected ? "live" : "connecting…")
+                               : stoppedAt ? `stopped at ${hhmm(stoppedAt).slice(0, 5)}` : "idle")
+           : mode === "replay finished" ? "replay finished" : mode ? (r.connected ? mode : `${mode} · offline`) : "connecting…";
+  const runTxt = !off && mode === "live" && ran !== null && ran >= 0 && (r.running || r.stopping || stoppedAt)
+    ? ` <span class="note">${r.running || r.stopping ? "for" : "after"} ${dur(ran)}</span>` : "";
+  setHTML($("status"), `<span class="dot ${(!off && r.connected && (r.running || mode === "replay")) ? "on" : ""}"></span>${esc(st)}${runTxt}`);
+  $("status").className = "st" + (off ? " off" : "");
+  $("status").title = off ? `the server has not answered since ${hhmm(offlineAt)}; the page keeps trying` :
+    r.stats ? `${(r.stats.msgs||0).toLocaleString()} messages, ${(r.stats.ml_scored||0).toLocaleString()} scored by the model` : "";
+  document.body.classList.toggle("offline", off && !!channel);
+  syncCtl();
+  const now = Date.now(), pills = [];
+  for (const [label, v] of Object.entries(errSeen)) if (now - v.at < 5*60*1000) pills.push(`<span class="err-pill" title="${esc(label)}: ${v.n} since this page opened; last at ${hhmm(v.at)}. See the server's console.">${esc(label)}</span>`);
+  setHTML($("errs"), pills.join(""));
+  renderRoles();
+}
+
+// ---------------------------------------------------------------- records from the server
+function onBatch(batch){
+  let viewChanged = false;
+  for (const r of batch){
+    try {
+      if (r.type === "msg"){
+        const c = chan(r.channel);
+        c.lines.push(r); if (c.lines.length > CH_LINES) c.lines.splice(0, c.lines.length - CH_LINES);
+        if (r.ts > (lastTs[r.channel] || 0)) lastTs[r.channel] = r.ts;
+        if (!channels.includes(r.channel)){ channels.push(r.channel); if (!channel){ channel = r.channel; viewChanged = true; } }
+        if (r.channel === channel && !viewChanged && want(r, noticeMap(channel))) queueRow(r);
+        evStale(r.channel, r.user_id);                // their open dropdown may have changed (LF3-1)
+      } else if (r.type === "modaction" || r.type === "bot_msg"){
+        const c = chan(r.channel); c.lines.push(r); if (c.lines.length > CH_LINES) c.lines.splice(0, c.lines.length - CH_LINES);
+        if (r.channel === channel && want(r, {})) queueRow(r);
+      } else if (r.type === "alert"){ alerts.push(r); if (alerts.length > 300) alerts.shift(); }
+      else if (r.type === "msg_update"){ applyUpdate(r); if (!ownEcho(r)) cardNews(r.channel, r.user_id); rcRefresh(r); evStale(r.channel, r.user_id); }
+      else if (r.type === "person_read"){ cardNews(r.channel, r.user_id); }
+      else if (r.type === "review"){ const a = alerts.find(x => x.alert_id === r.alert_id); if (a) a.review = r; }
+      else if (r.type === "room"){ rooms[r.channel] = r; }
+      else if (r.type === "status") viewChanged = onStatus(r) || viewChanged;
+    } catch(e){ console.error("record skipped:", e, r); }
+  }
+  if (viewChanged) switchView(); else schedule();
+}
+function onStatus(r){
+  lastStatus = r;
+  if (r.owner_roles_rev !== undefined && !roleBusy){        // another page changed a role (LF3-8)
+    if (rolesRev !== null && r.owner_roles_rev !== rolesRev) roleNews();
+    rolesRev = r.owner_roles_rev;
+  }
+  const prevMode = mode, known = channels.slice();
+  if (r.mode !== undefined) mode = r.mode;
+  const prevBoot = bootId; if (r.boot !== undefined) bootId = r.boot;
+  noteStats(r.stats);
+  renderCtl(r);
+  safe("ai", () => aiOnStatus(r));
+  safe("review", reviewRedraw);
+  let changed = false;
+  const back = reconnected; reconnected = null;          // the last frame heard before the socket closed (LF6-1), on the first status after it came back
+  // a server that restarted holds nothing of the lists on this page: its boot id changed, in any mode (a restarted
+  // replay sends its chat again, LF5-2); or, from a live server without one, a new run (another session) after a
+  // reconnect, or idle with no Stop behind it. Either starts the page clean (LF4-1)
+  const restarted = r.boot !== undefined ? prevBoot !== null && r.boot !== prevBoot
+    : mode !== "live" ? false
+    : r.running ? back !== null && r.session && runSession && r.session !== runSession
+                : !r.stopping && !r.stopped_at && (channels.length || stoppedAt);
+  if (restarted){ resetRun(); changed = true; }
+  if (mode === "live"){
+    if (r.running && r.session) runSession = r.session;
+    if (r.running){
+      stoppedAt = null;
+      const list = r.channels || [];
+      if (list.join() !== channels.join()){          // a new Start: the server's list replaces the old one (LF-8)
+        for (const c of channels) if (!list.includes(c)){ delete buf[c]; delete rooms[c]; delete lastTs[c]; }
+        channels = list.slice();
+        if (!channels.includes(channel)){ channel = channels[0] || ""; changed = true; }
+      }
+    } else if (r.stopped_at) stoppedAt = r.stopped_at;
+  } else {
+    for (const c of r.channels || []) if (!channels.includes(c)) channels.push(c);
+  }
+  if (!channel && channels.length){ channel = channels[0]; changed = true; }
+  // back on the same process: what it sent meanwhile never reached this page, so each channel's chat says so (LF5-1).
+  // Not after a Stop or a finished replay that came before the drop: nothing was sent then
+  if (back !== null && !restarted && !(stoppedAt && stoppedAt <= back) && prevMode !== "replay finished")
+    for (const c of known) if (channels.includes(c)) markGap(c, back, Date.now());
+  return changed;
+}
+function markGap(ch, from, to){                     // one note line in the chat, shown under every filter
+  const g = {type: "gap", channel: ch, from, to}, c = chan(ch);
+  c.lines.push(g); if (c.lines.length > CH_LINES) c.lines.splice(0, c.lines.length - CH_LINES);
+  if (ch === channel && !overflow) pending.push(g);          // a note, not a new message: no count in the jump bar
+}
+let runSession = null, reconnected = null, bootId = null, sessName = "";
+function resetRun(){                                  // drop every list of the old run; the new server's records refill them
+  for (const o of [buf, rooms, lastTs]) for (const k of Object.keys(o)) delete o[k];
+  alerts.length = 0; channels = []; channel = ""; stoppedAt = null; evOpen = null; runSession = null;
+}
+
+// offlineAt: the last frame heard before the socket closed, until the server speaks again. Not the close time: the
+// watchdog closes a silent socket 12-15 s after its last frame, and a machine that slept far later (LF6-1)
+let ws = null, lastFrame = 0, offlineAt = null;
+function connect(){
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => { lastFrame = Date.now(); };
+  ws.onmessage = ev => { lastFrame = Date.now(); if (offlineAt !== null){ reconnected = offlineAt; offlineAt = null; } onBatch(JSON.parse(ev.data)); };
+  ws.onclose = () => { ws = null; if (offlineAt === null) offlineAt = Math.min(lastFrame || Date.now(), Date.now()); safe("status", renderStatus); schedule(); setTimeout(connect, 1500); };
+}
+// the server sends a status every 2 s: a socket that has been silent much longer is dead or dropped (LB-5)
+setInterval(() => { if (ws && ws.readyState === 1 && Date.now() - lastFrame > 12000) ws.close(); }, 3000);
+setInterval(schedule, 30000);     // card ages
+document.addEventListener("visibilitychange", () => { if (!document.hidden) schedule(); });   // back from a background tab (N-1)
+
+// ---------------------------------------------------------------- start / stop (live mode only)
+try { $("chanInput").value = localStorage.getItem("cw_channels") || ""; } catch(e){}
+function renderCtl(st){
+  if (st.mode === undefined) return;
+  $("ctl").hidden = st.mode !== "live";
+  if (st.mode !== "live" || st.running === undefined) return;
+  running = !!st.running;
+  finishing = !!(st.stopping && st.llm_queue && st.llm_queue.finishing);
+  $("startBtn").textContent = finishing ? "Stop now" : running ? "Stop" : "Start";
+  $("startBtn").className = running || finishing ? "stop" : "";
+  if (running && document.activeElement !== $("chanInput")) $("chanInput").value = (st.channels||[]).join(", ");
+  sessName = st.session || "";
+  syncCtl();
+}
+let ctlBusy = false;                                  // a Start or Stop is in flight: one POST at a time (LF4-3)
+let finishing = false;                                // Stop is finishing the AI queue: the button skips the rest
+function syncCtl(){
+  const off = offlineAt !== null;
+  $("startBtn").disabled = (ctlBusy && !finishing) || off;
+  $("startBtn").title = off ? "the server is not reachable"
+    : finishing ? "skip the AI reads still waiting (counted, not read); the session then closes" : "";
+  $("chanInput").disabled = running || ctlBusy;
+}
+async function startStop(){
+  if (finishing && offlineAt === null){ doStopNow(); return; }
+  if (ctlBusy || offlineAt !== null) return;
+  const val = $("chanInput").value.trim();
+  if (!running && !val){ $("chanInput").focus(); return; }
+  if (!running && val.replace(/^#/, "").split(/[\s,]+/).filter(Boolean).length > 1){     // owner 2026-11-07: one channel per session
+    $("ctlErr").textContent = "one channel at a time: Stop, then Start the other"; return; }
+  $("ctlErr").textContent = "";
+  ctlBusy = true; syncCtl();
+  try { await (running ? doStop() : doStart(val)); }
+  finally { ctlBusy = false; syncCtl(); }
+}
+async function doStop(){
+  try {
+    const r = await fetch("/api/stop", {method:"POST", headers:{"X-Chatwatch":"1"}});
+    if (!r.ok){ $("ctlErr").textContent = `couldn't stop (HTTP ${r.status})`; return; }
+  } catch(e){ $("ctlErr").textContent = "the server is not reachable"; return; }
+  stoppedAt = Date.now();
+  renderCtl({mode:"live", running:false, session:null});
+  switchView();
+}
+async function doStopNow(){                        // the first Stop's POST is still waiting for the queue
+  try {
+    const r = await fetch("/api/stop", {method:"POST", headers:{"Content-Type":"application/json", "X-Chatwatch":"1"},
+                                        body: JSON.stringify({now: true})});
+    if (!r.ok) $("ctlErr").textContent = `couldn't stop (HTTP ${r.status})`;
+  } catch(e){ $("ctlErr").textContent = "the server is not reachable"; }
+}
+async function doStart(val){
+  try { localStorage.setItem("cw_channels", val); } catch(e){}
+  let r, j;
+  try {
+    r = await fetch("/api/start", {method:"POST", headers:{"Content-Type":"application/json", "X-Chatwatch":"1"},
+                                   body: JSON.stringify({channels: val})});
+    j = await r.json().catch(() => ({}));
+  } catch(e){ $("ctlErr").textContent = "the server is not reachable"; return; }
+  if (!r.ok){ $("ctlErr").textContent = j.error || `couldn't start (HTTP ${r.status})`; return; }
+  onStatus({mode: "live", running: true, connected: false, channels: j.channels, session: j.session});
+  channel = j.channels[0];
+  switchView();
+}
+$("startBtn").onclick = startStop;
+$("chanInput").addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); if (!running) startStop(); } });
+
+// ---------------------------------------------------------------- user card
+async function askJSON(url, body, ms){
+  // POST for a JSON answer; an error status, a dead server or no answer in `ms` becomes {error}, so a button
+  // never stays on "Asking…" (the LLM can need minutes to load; the server gives up after ~13)
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(url, {method: "POST", signal: ctl.signal, body: JSON.stringify(body),
+                                headers: {"Content-Type": "application/json", "X-Chatwatch": "1"}});
+    const j = await r.json().catch(() => ({}));
+    return r.ok ? j : {error: j.error || `HTTP ${r.status}`};
+  } catch(e){
+    return {error: e.name === "AbortError" ? `no answer in ${Math.round(ms/1000)} s (the model may still be loading; try again)`
+                                           : "the server is not reachable"};
+  } finally { clearTimeout(timer); }
+}
+const READTXT = {bad_faith: "bad faith", good_faith: "good faith", mild: "mild", unclear: "unclear"};
+let card = null, cardSeq = 0, opener = null;          // card: {ch, uid} of the open card
+const D = $("drawer");
+function openDrawer(html, keep){
+  // a new card starts at its heading (LF-10); a reload of the same card after a correction keeps the reader's
+  // place and focus on the ⋯ they used (N-7)
+  D.innerHTML = html; D.scrollTop = keep ? keep.top : 0;
+  D.removeAttribute("inert"); D.classList.add("open"); D.setAttribute("aria-modal", "true");
+  // a message can be listed twice (behind the listing and in the recent messages): the ⋯ in the same section
+  const back = keep && keep.rc != null && [...D.querySelectorAll(`.rc[data-rc="${CSS.escape(String(keep.rc))}"]`)]
+    .find(b => !!b.closest(".evd") === !!keep.ev);
+  const roleB = keep && keep.role && D.querySelector("[data-role]");     // after a role change: its new button (LF3-4)
+  const c = back || roleB || D.querySelector(".close"); if (c) c.focus({preventScroll: true});
+}
+function closeDrawer(){
+  cardSeq++; card = null;
+  D.classList.remove("open"); D.setAttribute("inert", ""); D.removeAttribute("aria-modal");
+  // the opener can be gone or hidden (the header's "bots you set" after the last Remove): focus a visible start (LF3-4)
+  const vis = el => el && document.body.contains(el) && el.getClientRects().length;
+  const to = vis(opener) ? opener : opener && [$("heads").querySelector("[tabindex='0'],button"), $("tabs").querySelector("button"), $("chanInput")].find(vis);
+  if (to) to.focus({preventScroll: true});
+  opener = null;
+}
+const closeBtn = `<button class="close" data-close="1">Close</button>`;
+function cardNews(ch, uid){        // the open card's chatter got a new read or a re-read: offer a reload
+  if (!card || card.ch !== ch || card.uid !== uid || D.querySelector("#dUpd")) return;
+  const h = D.querySelector("h3"); if (!h) return;
+  h.insertAdjacentHTML("afterend", `<div class="upd" id="dUpd">New information for this chatter. <button class="btn" data-reload="1">Reload the card</button></div>`);
+}
+async function openCard(uid, ch, from, keep){
+  ch = ch || channel;
+  const seq = ++cardSeq;                                // only the newest click's answer is shown (LF-16)
+  if (from) opener = from;
+  let res, p;
+  try {
+    res = await fetch(`/api/profile?channel=${encodeURIComponent(ch)}&uid=${encodeURIComponent(uid)}`);
+    p = res.ok ? await res.json() : null;
+  } catch(e){
+    if (seq !== cardSeq) return;
+    card = {ch, uid};
+    return openDrawer(`${closeBtn}<h3 id="dTitle">Couldn't load this chatter</h3><div class="note">The server is not reachable.</div>`);
+  }
+  if (seq !== cardSeq) return;                          // another click, or Close, came first
+  card = {ch, uid};
+  if (!p) return openDrawer(`${closeBtn}<h3 id="dTitle">Couldn't load this chatter</h3><div class="note">${res.status === 404
+      ? "The server has no record of them in #" + esc(ch) + " (pruned, forgotten, or from another run)."
+      : `The server answered HTTP ${res.status}.`}</div>`);
+  const orole = p.owner_role, evWas = !!keep && !!D.querySelector("details.evd[open]");
+  card.stub = !!p.stub; card.role = !!orole;                  // for "Not a bot" on a stub (LF3-3), another page (LF3-8)
+  const roleBox = orole ? `<div class="box">Marked a <b>bot</b> by you${orole.set ? ` (${esc(String(orole.set).slice(0, 16).replace("T", " "))} UTC)` : ""}: not scored or listed while it is set.${roleUnsaved() ? " " + ROLE_UNSAVED : ""}
+      <button class="btn" data-role="">Not a bot</button><span class="note" id="roleErr" role="status"></span></div>` : "";
+  if (p.stub) return openDrawer(`${closeBtn}<h3 id="dTitle"><bdi>${esc(p.display)}</bdi><span class="chip owner">bot · set by you</span></h3>
+    <div class="note">#${esc(ch)} · no messages scored here</div>${roleBox}`, keep);
+  const age = p.account_age_days == null ? "account age unknown" : "account " + (p.account_age_days < 1 ? `${Math.round(p.account_age_days*24)} hours`
+            : p.account_age_days < 60 ? `${Math.round(p.account_age_days)} days` : `${(p.account_age_days/365).toFixed(1)} years`) + " old";
+  const badges = Array.isArray(p.badges) ? p.badges : Object.keys(p.badges || {});
+  const role = badges.includes("broadcaster") ? "broadcaster" : badges.includes("moderator") ? "mod" : badges.includes("vip") ? "VIP" : "";
+  const rd = p.person_read, reg = p.register, pr = p.persist, nt = p.notice;
+  const n = Number(p.messages) || 0;
+  openDrawer(`${closeBtn}
+    <h3 id="dTitle"><bdi>${esc(p.display)}</bdi>${role?`<span class="chip">${role}</span>`:""}${orole?'<span class="chip owner">bot · set by you</span>':""}${p.first_msg_seen && n <= 3?'<span class="chip first">new here</span>':""}</h3>
+    <div class="note">#${esc(ch)} · ${n} message${n===1?"":"s"} here · ${age}${p.sub_months?` · subscribed ${esc(p.sub_months)} months`:""}</div>
+    ${orole ? roleBox : nt ? `<div class="box ${esc(nt.level)}"><span class="lvl ${esc(nt.level)}">${LVTXT[nt.level] || ""}</span> ${(nt.why || []).map(esc).join(" · ")}${ownerChip(nt)}</div>`
+         : `<div class="box">Not on the watchlist.</div>`}
+    ${(p.evidence || []).length ? `<details class="sect evd"${evWas ? " open" : ""}><summary>${nt ? "Messages behind this" : "Toxic or corrected messages"} (${p.evidence.length})</summary>
+      ${evRows(ch, uid, p.evidence)}<div class="note" style="margin-top:3px">${EV_NOTE}</div></details>` : ""}
+    ${rd ? `<div class="box read"><b>LLM read: ${esc(READTXT[rd.label] || rd.label)}</b>${rd.rationale?` · ${esc(rd.rationale)}`:""}
+      <div class="note">the local LLM's read of their messages${rd.n?` (at ${esc(rd.n)} message${rd.n>1?"s":""})`:""}${rd.ts?`, ${ago(rd.ts)}`:""}</div></div>` : ""}
+    <section><h4>Toxic messages</h4>
+      ${p.toxic && p.toxic.messages ? `<div>${esc(p.toxic.messages)} of ${esc(p.toxic.of)} message${p.toxic.of===1?"":"s"}${(p.toxic.kinds||[]).length?` · ${p.toxic.kinds.map(k=>esc(k[0])+" ×"+esc(k[1])).join(", ")}`:""}</div>`
+                                    : `<div class="note">None so far.</div>`}
+      ${pr ? `<div class="note">Chance they keep it up: ${Math.round(pr.p*100)}% (typical chatter 10%). Context only, never a trigger.</div>` : ""}
+    </section>
+    ${(p.vocabulary&&p.vocabulary.length)||p.distress_notes?`<section><h4>Coded vocabulary</h4>
+      ${(p.vocabulary||[]).map(v=>`<div>Uses <b>${esc(String(v.family).replace("_"," "))}</b> vocabulary: ${(v.terms||[]).map(esc).join(", ")}${v.t1_messages?` (dehumanising terms in ${esc(v.t1_messages)} message${v.t1_messages>1?"s":""})`:""}</div>`).join("")}
+      ${p.distress_notes?`<div style="color:var(--info)">Possible distress: ${esc(p.distress_notes)} message(s) used suicide-related words about themselves. Not counted as toxicity.</div>`:""}
+      <div class="note">Shows exposure to a discourse, not what someone believes. Terms the whole room uses count less.</div></section>`:""}
+    <section><h4>Recent messages</h4>
+      ${(p.recent_messages||[]).slice().reverse().map(m=>`<div class="rmsg" title="${esc((m.reasons||[]).join(" · "))}"><span class="pip" style="background:${toxColor(m.toxicity)}"></span>
+        <span class="t">${hhmm(m.ts)}</span> <bdi>${esc(m.text)}</bdi> <span class="tc">${toxChip(m.toxicity)}</span>${m.id != null ? rcBtn(ch, uid, m.id, m.toxicity) : ""}${flagChips(m.flags)}</div>`).join("")}
+      <div class="note">⋯ next to a message reclassifies it. Your correction decides whether and how this chatter shows on the watchlist; it is never used to train or measure the tool.</div>
+    </section>
+    <section><h4>Tools</h4>
+      <button class="btn" id="warnBtn">Draft a warning</button> <button class="btn" id="llmBtn">${rd ? "Ask the LLM again" : "Ask the LLM for a read"}</button>
+      <div class="note" style="margin-top:4px">Both use the local LLM, about this chatter in #${esc(ch)}. A draft is for you to copy; nothing is ever sent.</div>
+      <div id="warnOut" style="margin-top:8px"></div><div id="llmOut" class="note" style="margin-top:8px" aria-live="polite"></div>
+      ${orole ? "" : `<div style="margin-top:8px"><button class="btn" data-role="bot">Mark as a bot</button><span class="note" id="roleErr" role="status"></span>
+        <div class="note" style="margin-top:4px">For an account that is a bot: not scored or listed until you undo it. Not for mods: they are held to the same standard.${roleUnsaved() ? " " + ROLE_UNSAVED : ""}</div></div>`}
+    </section>
+    <details class="sect"><summary>First-impression read (archetypes)</summary>
+      <div style="margin-bottom:6px">${esc(p.verdict)}</div>
+      ${(p.archetypes||[]).filter(a=>a.p>=.01).map(a=>`<div class="arow" title="${esc(a.desc)}"><span>${esc(a.label)}</span>
+        <span class="track"><i style="width:${a.p*100}%;background:${FAMCOL[a.family] || "var(--mild)"}"></i></span><span>${Math.round(a.p*100)}%</span></div>`).join("")}
+      <div class="note">Certainty ${Math.round((p.certainty||0)*100)}% · peak bad-faith score ${Math.round((p.peak_badfaith||0)*100)}%${p.behaviour_type?` · behaviour type: ${esc(p.behaviour_type)}`:""}</div>
+      <h4 style="margin-top:10px">Why</h4>
+      ${(p.reasons||[]).map(r=>`<div class="reason"><span class="w" style="color:${r.weight>0?(FAMCOL[r.family] || "var(--mild)"):"var(--faint)"}">${r.weight>0?"+":""}${esc(r.weight)}</span><span>${esc(r.archetype)}: ${esc(r.reason)}</span></div>`).join("") || '<div class="note">No notable signals.</div>'}
+      ${(p.account_reasons||[]).length?`<div class="note" style="margin-top:6px">Account: ${p.account_reasons.map(r=>esc(r.reason)).filter((v,i,a)=>a.indexOf(v)===i).join(" · ")}</div>`:""}
+    </details>
+    <details class="sect"><summary>How they talk (register${reg?` · ${esc(reg.confidence)} confidence`:""})</summary>
+      ${reg ? `<div>${esc(reg.style)}${reg.margin<0.7?` <span class="note">(or ${esc(reg.runner_up)})</span>`:""}: <span class="note">${esc(reg.summary)}</span></div>
+        <div class="note">${esc(reg.words)} words · tags: ${(reg.tags||[]).map(esc).join(", ")||"none"}</div>
+        ${reg.confidence==="insufficient"?'<div class="note">Too few words for a stable register (about 300 are needed).</div>':""}` : '<div class="note">Not available.</div>'}
+    </details>
+    ${(p.reactions||[]).length?`<details class="sect"><summary>Mod actions seen (context only)</summary>
+      ${p.reactions.map(r=>`<div class="note">${hhmm(r[0])} · ${esc(r[1])} · ${esc(r[2])}</div>`).join("")}
+      <div class="note">Mod actions never put anyone on the watchlist or take them off it.</div></details>`:""}`, keep);
+  const who = {channel: ch, uid};                       // the card's own channel, whatever tab is open (LF-3)
+  // each tool asks once at a time, also across a redraw of this card: a second click would start another LLM call (LF4-4)
+  const TOOLS = {warn: ["warnBtn", "warnOut", "Writing…"], llm: ["llmBtn", "llmOut", "Asking…"]};
+  const tkey = t => `${t}\n${ch}\n${uid}`;
+  const ask = async (t, url) => {
+    const [btn, out, wait] = TOOLS[t];
+    if (toolBusy.has(tkey(t))) return null;
+    toolBusy.add(tkey(t)); $(btn).disabled = true; $(out).innerHTML = `<span class="note">${wait}</span>`;
+    const j = await askJSON(url, who, 120000);
+    toolBusy.delete(tkey(t));
+    if (!card || card.ch !== ch || card.uid !== uid || !$(btn)) return null;    // closed, or another chatter's card now
+    $(btn).disabled = false;
+    return j;
+  };
+  for (const [t, [btn, out, wait]] of Object.entries(TOOLS))
+    if (toolBusy.has(tkey(t))){ $(btn).disabled = true; $(out).innerHTML = `<span class="note">${wait}</span>`; }
+  $("warnBtn").onclick = async () => {
+    const j = await ask("warn", "/api/draft_warning");
+    if (!j) return;
+    if (j.error){ $("warnOut").innerHTML = `<span class="note">Unavailable: ${esc(j.error)}</span>`; return; }
+    if (!j.warranted || !j.warning){
+      $("warnOut").innerHTML = `<span class="note">The model doesn't think a warning is warranted: ${esc(j.why)}</span>`; return; }
+    $("warnOut").innerHTML = `<div class="warnbox" id="warnText">${esc(j.warning)}</div>
+      <button class="btn" id="copyWarn" style="margin-top:6px">Copy</button> <span class="note">${esc(j.why)}</span>`;
+    $("copyWarn").onclick = async () => {
+      try { await navigator.clipboard.writeText(j.warning); $("copyWarn").textContent = "Copied"; }
+      catch(e){ const rg = document.createRange(); rg.selectNodeContents($("warnText"));
+                const sel = getSelection(); sel.removeAllRanges(); sel.addRange(rg); $("copyWarn").textContent = "Selected: press Ctrl+C"; }
+    };
+  };
+  $("llmBtn").onclick = async () => {
+    const j = await ask("llm", "/api/llm_review");
+    if (!j) return;
+    $("llmOut").innerHTML = j.error ? `Unavailable: ${esc(j.error)}` :
+      `<b>${esc(READTXT[j.label] || j.label)}</b> (${esc(j.confidence)}): ${esc(j.rationale)}${j.rules&&j.rules.length?`<br>Rules: ${j.rules.map(esc).join(", ")}`:""}`;
+  };
+}
+const toolBusy = new Set();                          // "tool\nchannel\nuid" of each LLM tool request in flight (LF4-4)
+
+// ---------------------------------------------------------------- reclassify a message (the owner's correction)
+// The correction decides the message's class for the live watchlist (the server's /api/override); it is never a
+// label for training or measurement (docs/DASHBOARD.md "Reclassifying a message").
+const rcState = t => t && t.source === "owner" ? `${t.level}:${(t.kinds || [])[0] || ""}` : "";   // "" = automatic
+function applyUpdate(r){              // a message's new read (an LLM re-read, or the owner's correction)
+  const m = chan(r.channel).lines.find(x => String(x.id) === String(r.id));
+  if (m) m.toxicity = r.toxicity;
+  evPatch(r);
+  // every ⋯ of this message, in chat and in the open card: its chip, its pip and the class its menu shows (N-10)
+  for (const b of document.querySelectorAll(`.rc[data-rc="${CSS.escape(String(r.id))}"]`)){
+    if (b.dataset.rcc !== r.channel) continue;
+    b.dataset.rco = rcState(r.toxicity);
+    const tc = b.parentElement.querySelector(".tc"); if (tc) tc.innerHTML = toxChip(r.toxicity);
+    const row = b.closest(".line,.rmsg"), pip = row && row.querySelector(".pip"); if (pip) pip.style.background = toxColor(r.toxicity);
+  }
+  // under the Flagged filter a line that is no longer flagged for any reason leaves the list (N-10)
+  const NM = noticeMap(r.channel);
+  if (filter === "flagged" && r.channel === channel && m && !isFlagged(m, NM)){
+    updateRows(r.id, el => { if (rcOpener && el.contains(rcOpener)) closeRc(false); el.remove(); });
+    shown = shown.filter(x => String(x.id) !== String(r.id));
+  }
+  // ... and a line that turns toxic joins it: rebuilt at the next render while following, else counted in the jump bar (LF4-5)
+  else if (filter === "flagged" && r.channel === channel && m && isFlagged(m, NM) && !shown.includes(m)){
+    if (following) toxRebuild = true; else { unseen++; renderJump(); }
+  }
+}
+let toxRebuild = false;
+const RC_CHOICES = [["none", null, "Not toxic"], ["low", null, "Mild (low)"], ["medium", null, "Toxic (medium)"],
+  ["high", "hate", "Slur or hate (likely)"], ["high", "threat", "Threat (high)"], ["high", "sexual", "Sexual (high)"],
+  ["high", "harassment", "Harassment (high)"]];
+const rcBtn = (ch, uid, id, t) => `<button class="rc" data-rc="${esc(id)}" data-rcu="${esc(uid)}" data-rcc="${esc(ch)}" data-rco="${esc(rcState(t))}" aria-haspopup="menu" aria-expanded="false" aria-label="Reclassify this message" title="Reclassify this message">⋯</button>`;
+let rcFor = null, rcOpener = null, rcBusy = false, lastRc = null;     // lastRc: this page's last correction (N-6)
+function closeRc(refocus = true){ const el = $("rcMenu"); if (el) el.remove();
+  if (rcOpener) rcOpener.setAttribute("aria-expanded", "false");
+  if (refocus && rcOpener && document.body.contains(rcOpener)) rcOpener.focus({preventScroll: true});
+  rcFor = rcOpener = null; rcBusy = false;
+  schedule();                                           // the redraws the open menu held resume (N-2)
+}
+function rcQuote(btn){                 // the message the menu is for, quoted in its header (N-2)
+  const m = chan(btn.dataset.rcc).lines.find(x => String(x.id) === btn.dataset.rc);
+  const row = btn.closest(".line,.rmsg"), el = row && row.querySelector(":scope > .msg > bdi, :scope > bdi");
+  const t = m ? String(m.text || "") : el ? el.textContent : "";
+  return t.length > 60 ? t.slice(0, 59) + "…" : t;
+}
+function rcMenuHTML(){
+  const cur = rcOpener.dataset.rco || "";
+  const unsaved = mode !== "live" || lastStatus.saves === false;     // a replay, or a --fresh run (LB2-12, N-11)
+  return `<div class="h" id="rcHead">Reclassify this message</div><div class="q" title="${esc(rcQuote(rcOpener))}">“<bdi>${esc(rcQuote(rcOpener))}</bdi>”</div>` +
+    RC_CHOICES.map(([lv, k, label]) => { const on = cur === lv + ":" + (k || "");
+      return `<button role="menuitemradio" aria-checked="${on}" data-rcopt="${lv}" data-rck="${k || ""}" class="${on ? "cur" : ""}">${label}</button>`; }).join("") +
+    (cur ? `<button role="menuitem" data-rcopt="auto">Back to automatic</button>` : "") +
+    `<div class="note" style="padding:4px 8px">${unsaved ? "This run is not saved: the correction steers this view only and is not recorded."
+      : "Steers the watchlist only. Never used to train or measure the tool."}</div><div class="err" id="rcErr" role="status"></div>`;
+}
+function rcKeys(e){                    // arrow keys, Home and End move between the choices (N-8)
+  const bs = [...e.currentTarget.querySelectorAll("button:not(:disabled)")], i = bs.indexOf(document.activeElement);
+  const go = j => { e.preventDefault(); const b = bs[(j + bs.length) % bs.length]; if (b) b.focus({preventScroll: true}); };
+  if (e.key === "ArrowDown") go(i + 1); else if (e.key === "ArrowUp") go(i < 0 ? bs.length - 1 : i - 1);
+  else if (e.key === "Home") go(0); else if (e.key === "End") go(bs.length - 1);
+}
+function openRc(btn){
+  closeRc(false);
+  rcFor = {channel: btn.dataset.rcc, uid: btn.dataset.rcu, id: btn.dataset.rc}; rcOpener = btn;
+  btn.setAttribute("aria-expanded", "true");
+  const menu = document.createElement("div");
+  menu.id = "rcMenu"; menu.setAttribute("role", "menu"); menu.setAttribute("aria-labelledby", "rcHead");
+  menu.innerHTML = rcMenuHTML();
+  menu.addEventListener("keydown", rcKeys);
+  // focus leaving the menu (Tab, a click elsewhere) closes it; its own ⋯ toggles it (N-8)
+  menu.addEventListener("focusout", () => setTimeout(() => {
+    if ($("rcMenu") === menu && !rcBusy && !menu.contains(document.activeElement) && document.activeElement !== rcOpener) closeRc(false);
+  }, 0));
+  document.body.appendChild(menu);
+  const b = btn.getBoundingClientRect(), w = menu.offsetWidth, h = menu.offsetHeight;
+  menu.style.left = Math.max(8, Math.min(innerWidth - w - 8, b.left)) + "px";
+  menu.style.top = (b.bottom + h + 8 < innerHeight ? b.bottom + 4 : Math.max(8, b.top - h - 4)) + "px";
+  const first = menu.querySelector("button.cur") || menu.querySelector("button"); if (first) first.focus({preventScroll: true});
+}
+function rcRefresh(r){                 // another page (or a re-read) changed the message this menu is open for (N-10)
+  const el = $("rcMenu"); if (!el || !rcFor || rcBusy || String(rcFor.id) !== String(r.id) || rcFor.channel !== r.channel) return;
+  const i = [...el.querySelectorAll("button")].indexOf(document.activeElement);
+  el.innerHTML = rcMenuHTML();
+  const bs = el.querySelectorAll("button"), b = bs[Math.max(0, Math.min(i, bs.length - 1))] || bs[0]; if (b) b.focus({preventScroll: true});
+}
+function ownEcho(r){                   // the server's copy of this page's own correction is no news (N-6)
+  if (lastRc && lastRc.id === String(r.id) && lastRc.tox === JSON.stringify(r.toxicity)){ lastRc = null; return true; }
+  return false;
+}
+async function chooseRc(opt){
+  if (!rcFor || rcBusy) return;                         // one correction at a time: no repeat POSTs (N-5)
+  const who = rcFor, menu = $("rcMenu"), level = opt.dataset.rcopt === "auto" ? null : opt.dataset.rcopt;
+  const top = card && card.ch === who.channel && card.uid === who.uid ? D.scrollTop : null;
+  const inEv = !!rcOpener.closest(".evd"), inList = !!rcOpener.closest(".evl");    // the card's list, the dropdown's
+  rcBusy = true;
+  if (menu){ for (const b of menu.querySelectorAll("button")) b.disabled = true;
+    const e = $("rcErr"); if (e){ e.className = "err busy"; e.textContent = "Saving…"; } }
+  const j = await askJSON("/api/override", {...who, level, kind: opt.dataset.rck || null}, 10000);
+  if (!j.error && !j.unchanged) lastRc = {id: String(j.id), tox: JSON.stringify(j.toxicity)};
+  if (rcFor !== who){ if (!j.error) applyUpdate(j); return; }    // the menu was closed meanwhile
+  rcBusy = false;
+  if (j.error){                                         // e.g. 500 "not applied: could not be recorded" (N-3)
+    if (menu){ for (const b of menu.querySelectorAll("button")) b.disabled = false;
+      const e = $("rcErr"); if (e){ e.className = "err"; e.textContent = j.error; } opt.focus({preventScroll: true}); }
+    return;
+  }
+  applyUpdate(j);                     // the server also sends it to every page; this shows it at once
+  closeRc();
+  if (top != null) openCard(who.uid, who.channel, null, {top, rc: who.id, ev: inEv});     // same place, same ⋯ (N-7)
+  if (evIsOpen(who.channel, who.uid)){                  // the dropdown's "counts now" / "not toxic now" follow it
+    await loadEv(who.channel, who.uid);
+    if (evIsOpen(who.channel, who.uid) && !holding()){ renderWatch(); if (inList) evFocus(who.uid, who.id); }
+  }
+}
+
+// ---------------------------------------------------------------- the owner's roles (only "bot"; set by hand, never automated)
+// A bot is not scored, profiled or listed while the role is set (POST /api/role); its lines stay in chat, tagged, so
+// the role can be seen and undone from there, from its card, or from the header's list (GET /api/roles).
+const ROLE_UNSAVED = "This run is not saved: the role steers this view only.";
+const roleUnsaved = () => mode !== "live" || lastStatus.saves === false;
+let roleBusy = false, rolesRev = null;                 // rolesRev: the server's role revision this page last saw (LF3-8)
+async function setRole(t){
+  if (t.disabled) return;
+  const who = card && card.uid ? {channel: card.ch, uid: card.uid} : {channel: "", uid: t.dataset.unrole};
+  const role = t.dataset.role || null, onCard = !!(card && card.uid), stub = onCard && card.stub;
+  const seq = cardSeq;
+  t.disabled = true; roleBusy = true;
+  const j = await askJSON("/api/role", {...who, role}, 10000);
+  t.disabled = false; roleBusy = false;
+  if (j.error){ const e = onCard ? $("roleErr") : $("rolesErr"); if (e) e.textContent = " " + j.error; return; }
+  if (j.rev !== undefined) rolesRev = j.rev;            // this page's own change is no news
+  lastStatus.owner_roles = Math.max(0, (Number(lastStatus.owner_roles) || 0) + (j.unchanged ? 0 : role ? 1 : -1));
+  renderRoles();
+  if (seq !== cardSeq) return;                           // the card was closed or replaced meanwhile
+  if (stub && !role){                                    // a stub has no profile to reload once the role is gone (LF3-3)
+    card = {ch: who.channel, uid: who.uid, stub: true, role: false};
+    const name = D.querySelector("#dTitle bdi"), disp = name ? name.textContent : "";
+    return openDrawer(`${closeBtn}<h3 id="dTitle"><bdi>${esc(disp)}</bdi></h3>
+      <div class="box">Not a bot any more: their new messages in #${esc(who.channel)} are scored again.</div>`);
+  }
+  if (onCard && card && card.uid === who.uid) openCard(who.uid, who.channel, null, {top: D.scrollTop, role: true});
+  else if (!onCard) openRoles();
+}
+async function roleNews(){                              // another page set or removed a role: offer a reload (LF3-8)
+  if (!card || !D.classList.contains("open")) return;
+  if (!card.uid) return cardNews("", "");                // the roles list
+  const c = card;
+  let has = null;
+  try { const r = await fetch("/api/roles"); if (r.ok) has = ((await r.json()).roles || []).some(e => String(e.user_id) === String(c.uid)); }
+  catch(e){}
+  if (card === c && has !== null && has !== !!c.role) cardNews(c.ch, c.uid);
+}
+function renderRoles(){
+  const n = Number(lastStatus.owner_roles) || 0, b = $("rolesBtn");
+  b.hidden = !n; const txt = `bots you set: ${n}`; if (b.textContent !== txt) b.textContent = txt;
+}
+async function openRoles(){
+  const seq = ++cardSeq;
+  let j;
+  try { const r = await fetch("/api/roles"); j = r.ok ? await r.json() : {error: `HTTP ${r.status}`}; }
+  catch(e){ j = {error: "the server is not reachable"}; }
+  if (seq !== cardSeq) return;
+  card = {ch: "", uid: ""};
+  const rs = j.roles || [];
+  openDrawer(`${closeBtn}<h3 id="dTitle">Bots you set</h3>
+    <div class="note">Set by hand on a chatter's card. Not scored or listed while set; removing it scores their new messages again.${roleUnsaved() ? " " + ROLE_UNSAVED : ""}</div>
+    ${j.error ? `<div class="note">Couldn't load them: ${esc(j.error)}</div>` : !rs.length ? `<div class="box">None.</div>`
+      : rs.map(e => `<div class="rmsg rrow"><b title="${esc(e.display || e.login)}"><bdi>${esc(e.display || e.login)}</bdi></b>
+        <span class="note">${esc(e.role)} · set ${esc(String(e.set || "").slice(0, 16).replace("T", " "))} UTC</span><span class="sp"></span>
+        <button class="btn" data-unrole="${esc(e.user_id)}">Remove</button></div>`).join("")}
+    <div class="note" id="rolesErr" role="status"></div>`);
+}
+
+// ---------------------------------------------------------------- the AI: which model reads, speed before Start, hybrid review
+// GET /api/ai: this machine's specs and the setups that fit it, each with its tested numbers (labelled with the hardware
+// they were tested on, or "measured here" after a speed check). Changing it, checking a speed and the review are POSTs
+// (X-Chatwatch) that start one server task at a time; the status carries its progress (r.ai.task).
+let aiPickByUser = false;     // the row the user clicked; otherwise the selection follows the setup in use (the server's choice)
+// aiNote: the last action's result, shown on the AI bar for AI_NOTE_MS or until the next action (owner 2026-11-08)
+const AI_NOTE_MS = 60000;
+let aiNoteAt = 0;
+let aiInfo = null, aiPick = null, aiErr = "", aiNote = "", aiTaskKind = null, aiOv = null, aiSeq = 0, aiStatus = {};
+let aiHidden = false, aiWasRunning = false, aiRateKind = null;
+try { aiHidden = localStorage.getItem("cw_ai_hidden") === "1"; } catch(e){}
+const fmtMin = s => s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`;
+// FE-2 (audit 2026-11-10): a status redraws the AI panel and the Review box only while nobody is using them: not during
+// a press (it would drop the click), nor while a text box or a list in them is being edited (a rate being typed, an open
+// GPU / RAM list); they redraw once that ends. A redraw keeps keyboard focus on the same control.
+// FE-11 (round 2): focus alone holds nothing (a closed list keeps focus after a pick, the rate box after Enter). Typing
+// (input) holds until change, Escape, Enter or leaving the box.
+// FE-12 (round 3): opening a list (its pointerdown, or a key other than Tab or a modifier on it) holds for at most
+// LIST_HOLD_MS: a native list closed with Escape, a second click or the same value sends the page nothing, so its hold
+// must end on its own
+const ENTRY = "input:not([type=radio]):not([type=checkbox]), select, textarea";
+const LIST_HOLD_MS = 8000, MODIFIERS = new Set(["Tab", "Shift", "Control", "Alt", "Meta", "CapsLock"]);
+// FE-14 (round 4): each hold ends only on its own control's events: the focusout / change of the control left behind
+// (a typed rate, a setup row, another list) fires after the new list's pointerdown and must not end the new list's hold
+let typing = false, listUntil = 0, listEl = null;
+const busyIn = box => pressed || ((typing || Date.now() < listUntil) && box.contains(document.activeElement)
+                                  && document.activeElement.matches(ENTRY));
+for (const id of ["aiPanel", "reviewBox"]){
+  const box = $(id), stop = e => {
+    const sel = e.target.matches("select");
+    if (sel && e.target === listEl && listUntil){ listUntil = 0; listEl = null; setTimeout(kick, 0); }
+    else if (!sel && typing){ typing = false; setTimeout(kick, 0); }
+  };
+  const openList = el => { listUntil = Date.now() + LIST_HOLD_MS; listEl = el; setTimeout(kick, LIST_HOLD_MS + 50); };
+  box.addEventListener("input", e => { if (e.target.matches(ENTRY) && !e.target.matches("select")) typing = true; });
+  box.addEventListener("pointerdown", e => { if (e.target.matches("select")) openList(e.target); });
+  box.addEventListener("keydown", e => {
+    if (e.key === "Escape" || e.key === "Enter") stop(e);
+    else if (!MODIFIERS.has(e.key) && e.target.matches("select")) openList(e.target);
+  });
+  for (const ev of ["change", "focusout"]) box.addEventListener(ev, stop);
+}
+let aiLater = false, reviewLater = false;
+let aiDrawnLocked = null;                               // a Start or Stop always redraws: the panel folds or opens
+function aiRedraw(){ aiLater = aiDrawnLocked === (running || !!lastStatus.stopping) && busyIn($("aiPanel")); if (!aiLater) renderAI(); }
+function reviewRedraw(){ reviewLater = busyIn($("reviewBox")); if (!reviewLater) renderReview(); }
+for (const id of ["aiPanel", "reviewBox"]) $(id).addEventListener("focusout", () => setTimeout(kick, 0));
+function setKeep(el, html){                             // setHTML, then focus back on the control that had it
+  const a = document.activeElement, at = a && a !== el && el.contains(a) ? [...a.attributes].find(x => x.name.startsWith("data-")) : null;
+  setHTML(el, html);
+  if (!at || el.contains(document.activeElement)) return;
+  const n = el.querySelector(at.value ? `[${at.name}="${CSS.escape(at.value)}"]` : `[${at.name}]`);
+  if (n && !n.disabled){
+    n.focus({preventScroll: true});
+    if (n.matches("input[type=number], input[type=text], input:not([type])")) n.select();   // FE-13: the next key replaces, never "9425"
+  }
+}
+// one speed per setup (owner 2026-11-10: "a single msg/min"): the keep-up of person reads and flagged lines. How far
+// every queued line is re-read (reread_all / reread_most, sweep 2026-11-09) is not shown; it still decides when the
+// hybrid is recommended (leadsAt)
+const thins = sp => !!sp && sp.reread_all != null && (sp.keepup_plus ? sp.reread_all < 150 : sp.reread_all < sp.keepup);
+const kupN = sp => `${sp.keepup_plus ? "≥" : "~"}${sp.keepup} msgs/min`;
+const busyTxt = sp => sp.measured && (sp.busy || /other work/.test(sp.label || "")) ? ` <span class="note" data-busy>(measured with other work running)</span>` : "";
+// a speed as the page shows it (owner 2026-11-10): "Estimated ~40 msgs/min" in italics until Check Speed measures it on
+// this machine, then "~30 msgs/min"; where the number came from is in the tooltip
+function kupTxt(sp, extra = ""){
+  if (!sp) return `<span class="warnT">not tested on this hardware</span>`;
+  const why = sp.measured ? sp.label : `${sp.label}${sp.this_hardware === false ? " (a larger machine than this one)" : ""}; Check Speed measures it here`;
+  const tip = esc([why, sp.person_s != null ? `${(+sp.person_s).toFixed(1)} s to read one chatter as a person` : "", extra].filter(Boolean).join("; "));
+  if (sp.measured) return `<span class="k num" data-spd="measured" title="${tip}">${kupN(sp)}</span>${busyTxt(sp)}`;
+  if (sp.this_hardware === false) return `<i class="warnT" data-spd="untested" title="${tip}">Not tested on a machine this small</i> <span class="note">(${kupN(sp)} on the smallest one tested)</span>`;
+  return `<i data-spd="estimate" title="${tip}">Estimated <span class="k num">${kupN(sp)}</span></i>`;
+}
+// an (i) beside something with more to say (owner 2026-11-10; the Review box only: on the AI rows it was "just wordy"): its
+// title shows on hover, a click (or Enter) keeps the text open under it until a second click or Escape; kept across redraws
+let infoOpen = null;                                    // the (i) whose text is shown open (a key), across redraws
+const infoBtn = (key, text) => `<button type="button" class="info" data-info="${esc(key)}" aria-expanded="${infoOpen === key}" aria-label="More information" title="${esc(text)}">i</button>`;
+const infoPop = (key, text) => infoOpen === key ? `<span class="infoPop" role="note" data-info-pop="${esc(key)}">${esc(text)}</span>` : "";
+// accuracy on the page: + whole percent over No AI, the lowest-quality option (owner 2026-11-07); worded for a first-time
+// reader 2026-11-10 ("+66% accuracy"), its meaning in the note under the list and in the tooltip
+const ACC_TIP = "accuracy on real chat held out for testing: how well it marks toxic messages and picks out bad-faith chatters (scored against two independent judges), compared with No AI";
+function qTxt(q){ return q ? `<span class="k" title="${esc(ACC_TIP)}">+${q.over_no_ai}% accuracy</span>` : ""; }
+// FE-4 (audit 2026-11-10): a first read that failed is tried again with the status, at most every AI_RETRY_MS
+const AI_RETRY_MS = 5000;
+let aiLoadAt = 0, aiErrAt = 0;
+async function loadAI(now = false){        // now: the user asked (an override); else a status did, so it waits for typing (FE-2)
+  const seq = ++aiSeq, q = aiOv ? "?" + new URLSearchParams(aiOv) : "";
+  aiLoadAt = Date.now();
+  try {
+    const r = await fetch("/api/ai" + q);
+    if (r.status === 404){ aiInfo = null; aiErr = ""; now ? renderAI() : aiRedraw(); return; }      // a server before the picker
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json(); if (seq !== aiSeq) return;
+    aiInfo = j;
+    // a fresh answer: unless the user picked a row, select the setup in use (renderAI may have filled aiPick from the
+    // previous answer meanwhile: after a switch that showed "No AI" selected while the hybrid was in use, 2026-11-07)
+    if (!aiPickByUser || !aiPick) aiPick = {mode: j.choice.mode, live: j.choice.live, reviewer: j.choice.reviewer};
+    aiErr = "";
+  } catch(e){ if (seq === aiSeq){ aiErr = `the AI settings could not be read: ${e.message}${aiInfo ? "" : "; trying again"}`; aiErrAt = Date.now(); } }
+  now ? renderAI() : aiRedraw();
+}
+function inUse(){                                       // what Start runs: the server's live choice, else the last read
+  const A = aiStatus || {};
+  return A.mode ? {mode: A.mode, live: A.live, reviewer: A.reviewer} : aiInfo ? aiInfo.choice : null;
+}
+function kupShort(sp){                                  // the AI bar's speed: the list's words, without the detail
+  if (!sp) return `<span class="warnT">not tested here</span>`;
+  const tip = esc(sp.label || "");
+  if (sp.measured) return `<span class="k num" title="${tip}">${kupN(sp)}</span>${busyTxt(sp)}`;
+  if (sp.this_hardware === false) return `<i class="warnT" title="${tip}">not tested on a machine this small</i>`;      // audit polish F2
+  return `<i title="${tip}">Estimated <span class="k num">${kupN(sp)}</span></i>`;
+}
+// the AI bar's one line (owner 2026-11-08; worded 2026-11-10): the setup in use and its speed; for a hybrid the two models,
+// the reviewer's time per chatter and whether both models are in memory
+const shortName = lab => String(lab || "").replace(/ \+ MTP\b/g, "");    // owner 2026-11-10: "MTP" is clutter for the user
+const sizeOf = lab => shortName(lab).split(" ").pop();                    // "Gemma 4 12B + MTP" -> "12B"
+function aiLine(){
+  const c = inUse();
+  if (!aiInfo || !c) return "";
+  if (c.mode === "none") return `<span class="ailine"><b>No AI</b> <span class="note">· word lists and a small, fast toxicity model</span></span>`;
+  const row = id => (aiInfo.rows || []).find(r => r.id === id), lab = id => (row(id) || {}).label || id;
+  if (c.mode === "hybrid"){
+    const h = (aiInfo.hybrids || []).find(x => x.live === c.live && x.reviewer === c.reviewer), lv = row(c.live), pf = pfText(aiStatus);
+    const rs = (row(c.reviewer) || {}).speed, rev = h ? `<span class="k num">~${fmtMin(h.review_s)}</span> per chatter` : "";
+    const sp = h ? h.live_speed : lv ? lv.speed : null;
+    return `<span class="ailine"><b>${esc(sizeOf(lab(c.live)))} + ${esc(sizeOf(lab(c.reviewer)))} Hybrid</b>`
+      + ` · Live: ${esc(shortName(lab(c.live)))}${sp ? ` (${kupShort(sp)})` : ""}`
+      + ` · Review: ${esc(shortName(lab(c.reviewer)))}${rev ? ` (${rs && rs.measured ? rev : `<i>Estimated ${rev}</i>`})` : ""}${pf ? ` · ${pf}` : ""}</span>`;
+  }
+  const r = row(c.live);
+  return `<span class="ailine">Live and Review: <b>${esc(shortName(lab(c.live)))}</b>${r ? ` (${kupShort(r.speed)})` : ""}</span>`;
+}
+function taskText(t){                                   // one wording for a task's progress, wherever it is shown
+  if (!t) return "";
+  if (t.kind === "review" && t.total && /^reviewing chatter/.test(t.state || ""))
+    return `Reviewing chatter ${Math.min((t.done || 0) + (t.failed || 0) + 1, t.total)} of ${t.total}${t.failed ? ` (${t.failed} failed)` : ""}`
+      + `${t.eta_s != null ? ` · ~${fmtMin(t.eta_s)} left` : ""} · live AI paused`;
+  return (t.state || "") + (t.kind === "review" ? " · live AI paused" : "");
+}
+// ---- the chat rate the comparison uses: the last measured one (Measure), else what the user typed (owner 2026-11-07)
+let RATE = null, REC = {single: null, hybrid: null, rate: null};    // set by renderAI for the row builders
+let aiTypedRate = null;
+try { const v = +localStorage.getItem("cw_ai_rate"); if (v > 0) aiTypedRate = v; } catch(e){}
+function chatRate(){
+  const cr = aiInfo && aiInfo.chat_rate && !aiInfo.chat_rate.error ? aiInfo.chat_rate : null;
+  return aiTypedRate ? {r: aiTypedRate, src: "typed"} : cr && cr.msgs_per_min > 0 ? {r: cr.msgs_per_min, src: `#${cr.channel} now`} : null;
+}
+const keepsUp = (sp, r) => !!sp && (sp.keepup_plus || r <= sp.keepup);
+// single vs hybrid by re-read coverage (sweep 2026-11-09): the single model leads while it still re-reads most queued
+// lines (80%: "reread_most"; the 31B on 12 GB: 40), the hybrid above; without that figure, its keep-up as before
+const leadsAt = (sp, r) => keepsUp(sp, r) && (sp.reread_most == null || r <= sp.reread_most);
+function rateChip(sp, r){                               // a single model's line once the rate is known
+  const k = keepsUp(sp, r), all = !thins(sp) || r <= sp.reread_all;
+  const [cls, txt] = k ? ["okT", "keeps up"] : ["warnT", "falls behind"];
+  return ` · <span class="${cls}" data-keeps="${k ? "yes" : "no"}" data-rr="${!k ? "behind" : all ? "all" : "thin"}">at ${Math.round(r)} msgs/min: ${txt}</span>`;
+}
+function effAt(rate, interval, swap){                   // the hybrid "when fully implemented" at this rate (hybrid_effective.py)
+  const E = aiInfo && aiInfo.hybrid_effective; if (!E) return null;
+  const rows = E.rows.filter(x => x.interval_min === interval && x.swap === swap).sort((a, b) => a.rate - b.rate);
+  if (!rows.length) return null;
+  if (rate <= rows[0].rate) return rows[0];
+  if (rate >= rows[rows.length - 1].rate) return rows[rows.length - 1];
+  const i = rows.findIndex(x => x.rate >= rate), lo = rows[i - 1], hi = rows[i], f = (rate - lo.rate) / (hi.rate - lo.rate);
+  const mix = k => lo[k] + f * (hi[k] - lo[k]);
+  return {rate, minutes_per_press: mix("minutes_per_press"), paused_share: mix("paused_share"), coverage: mix("coverage"),
+          likely_over_no_ai: Math.round(mix("likely_over_no_ai")), live_p95_lag_hi_min: mix("live_p95_lag_hi_min")};
+}
+function effLine(h){                                    // one compact line under the hybrid row, once the rate is known
+  const R = chatRate(), E = aiInfo && aiInfo.hybrid_effective;
+  if (!R || !E || h.live !== E.pair[0] || h.reviewer !== E.pair[1]) return "";
+  const sw = "cached";                                   // the table assumes the study's ~35 s swap, models in memory
+  const inMem = ((aiStatus || {}).prefetch || {}).state === "ready";   // second review 2: say so when they are not yet
+  const e10 = effAt(R.r, 10, sw), e30 = effAt(R.r, 30, sw); if (!e10) return "";
+  const tip = `likely: the share of flagged chatters a press can review (${Math.round(e10.coverage * 100)}% every 10 min, ${Math.round(e30.coverage * 100)}% every 30 min) scales the hybrid's tested gain over the live model alone; simulated with the lossless queue at this rate, not tested end to end. Every 30 min: ~${fmtMin(e30.minutes_per_press * 60)} per press (live paused ${Math.round(e30.paused_share * 100)}%), likely +${e30.likely_over_no_ai}%. Swap: the study's ~35 s, with both models in memory (the dashboard keeps them there in hybrid mode).`;
+  return `<span></span><span></span><span class="note eff" title="${esc(tip)}">at ${Math.round(R.r)} msgs/min (${esc(R.src)}): Review every 10 min takes ~${fmtMin(e10.minutes_per_press * 60)} (live paused ${Math.round(e10.paused_share * 100)}%), likely +${e10.likely_over_no_ai}% accuracy${e10.coverage < 0.95 ? ` (reviews ${Math.round(e10.coverage * 100)}% of flagged chatters)` : ""}${inMem ? "" : " · once the models are in memory (the first review loads them from disk: minutes)"}</span><span></span>`;
+}
+function recommendByRate(I){                            // one mark in the one list: the best single model while it leads (or no rate is known), else the hybrid
+  const R = chatRate(), best = (I.rows || []).find(r => r.recommended), hy = (I.hybrids || []).find(h => !(h.ram && h.ram.state === "short"));
+  if (!R || !best || !hy) return {single: best ? best.id : null, hybrid: !best && hy ? hy.live + "|" + hy.reviewer : null, rate: null};
+  const most = best.speed && best.speed.reread_most;
+  return leadsAt(best.speed, R.r) ? {single: best.id, hybrid: null, rate: R.r, most}
+    : {single: null, hybrid: hy.live + "|" + hy.reviewer, rate: R.r, most, behind: !keepsUp(best.speed, R.r)};
+}
+// the GPU layer cap and where it came from (vramcap, owner 2026-11-07: estimated from the VRAM available at start, or
+// found here by Check Speed): a development detail, so only in the speed's tooltip (owner 2026-11-10); the page says so
+// only when the cap is unknown (an MTP model on a card no check has run on), since then the model cannot be used yet
+function capTip(c){
+  if (!c || !c.known || c.value == null) return "";
+  const why = ["found", "set", "env", "lowered", "estimate", "carried"].includes(c.how) ? c.source : "";
+  return `${c.value} GPU layers${why ? ` (${why})` : ""}`;
+}
+const capWarn = c => c && !c.known ? ` · <span class="warnT" data-cap="unknown" title="${esc(c.source || "")}">press Check Speed before using it</span>` : "";
+function ramTxt(m){
+  if (!m || m.state === "ok") return "";
+  const need = Math.ceil(m.need_gb + m.headroom_gb);
+  const tip = `the model's part in system RAM ~${m.need_gb} GB, plus ${m.headroom_gb} GB kept free (the dashboard itself, the desktop); ${m.assumed ? "no free-RAM read: three quarters of the RAM size taken as free" : "read at start"}`;
+  const av = `${m.avail_gb} ${m.assumed ? "assumed free" : "available"}`;
+  return m.state === "short" ? ` · <span class="badT" data-ram="short" title="${esc(tip)}">needs ~${need} GB free RAM, ${av}</span>`
+    : ` · <span class="warnT" data-ram="tight" title="${esc(tip)}">only just fits in memory: needs ~${need} GB free RAM, ${av}</span>`;
+}
+function rowHTMLai(r){
+  const sel = aiPick && aiPick.mode === "single" && aiPick.live === r.id;
+  const off = !!r.blocked || !r.installed;
+  const inUse = aiInfo.choice.mode === "single" && aiInfo.choice.live === r.id;
+  const right = r.blocked ? `<span class="warnT">${esc(shortName(r.blocked))}</span>`
+    : !r.installed ? `<span class="note">not installed · ${r.download_gb} GB · <code>${esc(r.install)}</code></span>`
+    : `<button class="btn small" data-ai-speed="${esc(r.id)}" title="1-3 min: measures how fast this model runs on this machine">Check Speed</button>`;
+  return `<label class="r${sel ? " sel" : ""}${off ? " off" : ""}"><input type="radio" name="aiRow" data-ai-row="${esc(r.id)}" ${sel ? "checked" : ""} ${off ? "disabled" : ""}>
+    <span class="nm">${esc(shortName(r.label))}${REC.single === r.id ? ` <span class="chip first" title="${REC.rate ? `the best accuracy at ${Math.round(REC.rate)} msgs/min` : "the best accuracy that fits this machine"}">recommended</span>` : ""}${inUse ? ` <span class="chip">in use</span>` : ""}</span>
+    <span><span class="k" data-row-figs>${qTxt(r.quality)} · ${kupTxt(r.speed, capTip(r.num_gpu))}</span>${capWarn(r.num_gpu)}${ramTxt(r.ram)}${RATE && r.speed ? rateChip(r.speed, RATE.r) : ""}${r.note ? ` · <span class="note">${esc(r.note)}</span>` : ""}</span>
+    <span>${right}</span></label>`;
+}
+function hybName(h){                                    // "12B + 31B Hybrid" (owner 2026-11-10), the full names under it
+  const lab = id => ((aiInfo.rows || []).find(r => r.id === id) || {}).label || id;
+  return {short: `${sizeOf(lab(h.live))} + ${sizeOf(lab(h.reviewer))} Hybrid`, long: `${shortName(lab(h.live))} live, ${shortName(lab(h.reviewer))} reviews`};
+}
+function hybHTML(h){
+  const sel = aiPick && aiPick.mode === "hybrid" && aiPick.live === h.live && aiPick.reviewer === h.reviewer;
+  const inUse = aiInfo.choice.mode === "hybrid" && aiInfo.choice.live === h.live && aiInfo.choice.reviewer === h.reviewer;
+  const off = !h.installed || !!h.blocked, nm = hybName(h);
+  const rs = ((aiInfo.rows || []).find(r => r.id === h.reviewer) || {}).speed, rev = `<span class="num">~${fmtMin(h.review_s)}</span> per chatter`;
+  return `<label class="r${sel ? " sel" : ""}${off ? " off" : ""}"><input type="radio" name="aiRow" data-ai-hyb="${esc(h.live)}|${esc(h.reviewer)}" ${sel ? "checked" : ""} ${off ? "disabled" : ""}>
+    <span class="nm">${esc(nm.short)}${REC.hybrid === h.live + "|" + h.reviewer ? ` <span class="chip first" title="${REC.rate ? (REC.behind ? `the best single model falls behind at ${Math.round(REC.rate)} msgs/min` : `at ${Math.round(REC.rate)} msgs/min the hybrid catches more than the best single model`) : "the best hybrid for this machine"}">recommended</span>` : ""}${inUse ? ` <span class="chip">in use</span>` : ""}<br><span class="note" style="font-weight:400">${esc(nm.long)}</span></span>
+    <span><span class="k" data-hyb-figs><span title="${esc(ACC_TIP)}">+${h.quality.b_over_no_ai}% accuracy</span> · Live: ${kupTxt(h.live_speed)} · Review: ${rs && rs.measured ? rev : `<i>Estimated ${rev}</i>`}</span>${ramTxt(h.ram)}${h.ram && h.ram.state !== "short" && !h.ram.readahead ? ` · <span class="note" data-readahead="no">not enough free RAM to keep both models in memory (~${Math.round(h.ram.readahead_gb)} GB): each review loads them from disk</span>` : ""}</span>
+    <span>${off ? `<span class="note">${esc(shortName(h.blocked) || "install both models first")}</span>` : ""}</span>${effLine(h)}</label>`;
+}
+// the line under "This machine" (owner 2026-11-10: only what to do, not which tested machine the estimate comes from)
+function tierNote(T){
+  if (!T.key && T.proxy) return `<span class="warnT">This machine is smaller than any tested: press Check Speed to see how fast a model runs here.</span>`;
+  if (!T.key) return "Pick your GPU memory and RAM.";
+  return `Speeds in italics are estimates: press Check Speed to measure a model on this machine.${T.ram_short ? " Models that don't fit in the RAM are not listed." : ""}`;
+}
+function renderAI(){
+  const P = $("aiPanel");
+  const live = mode === "live";
+  P.hidden = !live || !aiInfo && !aiErr;
+  if (P.hidden) return;
+  if (aiErr && !aiInfo){ setKeep(P, `<div class="sum"><b>AI</b><span class="badT">${esc(aiErr)}</span></div>`); return; }
+  const I = aiInfo, S = I.specs || {}, C = I.classes || {}, T = I.tier || {}, M = I.memory || {}, task = (aiStatus || {}).task;
+  RATE = chatRate(); REC = recommendByRate(I);
+  if (!aiPick) aiPick = {mode: I.choice.mode, live: I.choice.live, reviewer: I.choice.reviewer};
+  const ch = aiStatus && aiStatus.mode ? aiStatus : I.choice;          // the server's live state wins over the last read
+  const locked = aiDrawnLocked = running || !!lastStatus.stopping;
+  const note = aiNote && Date.now() - aiNoteAt < AI_NOTE_MS ? `<span class="note" data-ai-note>${aiNote}</span>` : "";
+  // the one-line bar has no action row: an error from its own Cancel shows on it, for AI_NOTE_MS (FE-5)
+  const barErr = (aiHidden || locked) && aiErr && Date.now() - aiErrAt < AI_NOTE_MS ? ` <span class="badT" data-ai-err>${esc(aiErr)}</span>` : "";
+  const sum = `<div class="sum"><b>AI</b>${aiLine()}${aiStatus.blocked ? ` <span class="badT" data-blocked>AI off for this run: ${esc(shortName(aiStatus.blocked))}</span>` : ""}
+     <span class="sp"></span>${task ? `<span class="warnT" title="${esc(task.what)}">${esc(taskText(task))}</span> <button class="btn small" data-ai-cancel>Cancel</button>` : note}${barErr}
+     ${sessName ? `<span class="sess" title="this session's log folder under data/sessions">Logging: ${esc(sessName)}</span>` : ""}
+     ${locked ? `<span class="note">Change after Stop</span>` : `<button class="btn small" data-ai-toggle>${aiHidden ? "Details" : "Hide"}</button>`}</div>`;
+  if (aiHidden || locked){ setKeep(P, sum); return; }
+  const opt = (k, choices, v) => `<select data-ai-ov="${k}" aria-label="${k === "vram" ? "GPU memory" : "System RAM"}">${v ? "" : `<option value="" selected>pick</option>`}${choices.map(c =>
+      `<option value="${esc(c)}" ${c === v ? "selected" : ""}>${esc(c === "none" ? "no GPU" : c + " GB")}</option>`).join("")}</select>`;
+  const spec = `<div class="spec"><span>This machine:</span>
+     <span>GPU ${esc(S.gpu_vendor === "none" ? "none" : `${S.gpu_name || S.gpu_vendor || "?"}`)}</span>${opt("vram", I.choices.vram, C.vram)}${M.vram_shown != null ? `<span class="note" data-avail="vram">${M.vram_shown} GB available${M.reserve_gb ? `, ${M.reserve_gb} GB kept for the desktop` : ""}</span>` : ""}
+     <span>RAM</span>${opt("ram", I.choices.ram, C.ram)}${M.ram_shown != null ? `<span class="note" data-avail="ram">${M.ram_shown} GB available</span>` : ""}${M.ram_assumed && M.ram_total != null ? `<span class="note" data-ram-read="${M.ram_total}">${M.ram_total} GB read, below the lowest option</span>` : ""}<span>${S.cores ? `${S.cores} cores` : ""}</span>
+     <span>Ollama ${esc((I.ollama || {}).version || "not answering")}</span>
+     ${(C.overridden || {}).vram || (C.overridden || {}).ram ? `<span class="note">(set by you; read: ${S.vram_mb ? Math.round(S.vram_mb / 1024) + " GB" : "no"} GPU, ${S.ram_mb ? Math.round(S.ram_mb / 1024) + " GB" : "?"} RAM)</span>` : ""}
+     <span class="note" data-tier-note>${tierNote(T)}</span></div>`;
+  const m = aiPick.mode;
+  // one list (owner 2026-11-07: "its better to just have it all on a single tab"): every setup that fits, best quality
+  // first (a hybrid by its quality reviewing every flagged chatter), and "No AI" last: selectable, never recommended
+  const items = [...(I.hybrids || []).map(h => ({q: h.quality.b_over_no_ai, html: hybHTML(h)})),
+                 ...(I.rows || []).map(r => ({q: r.quality.over_no_ai, html: rowHTMLai(r)}))].sort((a, b) => b.q - a.q);
+  const noneSel = m === "none", noneUse = (aiStatus.mode || I.choice.mode) === "none";
+  const noAI = `<label class="r${noneSel ? " sel" : ""}"><input type="radio" name="aiRow" data-ai-none ${noneSel ? "checked" : ""}>
+    <span class="nm">No AI${noneUse ? ` <span class="chip">in use</span>` : ""}</span>
+    <span><span class="k" data-row-figs><span title="${esc(ACC_TIP)}">+0% accuracy</span> · Keeps up with any chat rate</span> · <span class="note">the baseline: word lists and a small, fast toxicity model, no large AI</span> · <span class="warnT" title="${esc(`real-chat test: ${I.no_ai.gate || ""}`)}">misses some severe messages the AI catches</span></span>
+    <span></span></label>`;
+  // what the numbers mean, for someone seeing the list for the first time (owner 2026-11-10)
+  const sw = I.swap || {}, swMeasured = /^(last review here|last loads here)/.test(sw.label || "");
+  const swTxt = sw.s ? (swMeasured ? `~${fmtMin(sw.s)}` : `<i>Estimated ~${fmtMin(sw.s)}</i> (Check Speed on both models measures it)`) : "";
+  const h0 = (I.hybrids || [])[0], lq = h0 && ((I.rows || []).find(r => r.id === h0.live) || {}).quality;
+  const pressTxt = lq ? ` Its accuracy assumes you press Review; between reviews it reads at the live model's level (+${lq.over_no_ai}%).` : "";
+  const hybNote = (I.hybrids || []).length ? `<div class="note" data-hyb-note style="padding:2px 6px"><b>Hybrid:</b> a fast model reads every message live; a stronger model re-checks flagged chatters when you press Review on the Watchlist. It keeps up with busy chat and still gets the stronger model's judgement where it counts. While a review runs the live reading pauses (chat waits in the queue and is caught up after), and each review swaps the two models in and out${swTxt ? `: ${swTxt}` : ""}.${pressTxt}</div>` : "";
+  const accNote = `<div class="note" data-acc-note style="padding:2px 6px"><b>Accuracy:</b> how well a setup marks toxic messages and picks out bad-faith chatters in real chat held out for testing, compared with No AI. The msgs/min figure is the busiest chat a setup keeps up with.</div>`;
+  const list = `<div class="rowsAI">${items.map(x => x.html).join("") || (I.fit_note ? `<div class="note warnT" data-fit-note style="padding:2px 6px">${esc(shortName(I.fit_note))}</div>` : `<div class="note">${esc(T.why || "pick your GPU memory and RAM above")}</div>`)}${noAI}${accNote}${hybNote}</div>`;
+  const cr = I.chat_rate && !I.chat_rate.error ? I.chat_rate : null;
+  const sel = m === "single" ? (I.rows || []).find(r => r.id === aiPick.live) : m === "hybrid" ? (I.rows || []).find(r => r.id === aiPick.live) : null;
+  let crTxt = "";
+  if (cr){
+    crTxt = `#${esc(cr.channel)}: <b>${cr.msgs_per_min}</b> msgs/min now (${cr.seconds} s)${cr.note ? " · " + esc(cr.note) : ""}`;
+    if (sel && sel.speed && m !== "none"){
+      const lim = sel.speed.keepup, r = cr.msgs_per_min, hy = m === "single" && (I.hybrids || []).length;
+      crTxt += r > lim && !sel.speed.keepup_plus
+        ? ` · <span class="warnT">above this setup's ${lim}: its reads will lag at this rate${hy ? "; a hybrid keeps up" : ""}</span>`
+        : m === "single" && hy && !leadsAt(sel.speed, r)
+        ? ` · <span class="warnT">within this setup's ${sel.speed.keepup_plus ? "≥" : ""}${lim}, but a hybrid catches more at this rate</span>`
+        : ` · <span class="okT">within this setup's ${sel.speed.keepup_plus ? "≥" : ""}${lim}</span>`;
+    }
+  }
+  if (aiStatus.rate_task) crTxt = `<span class="warnT">${esc(aiStatus.rate_task.state)}</span>`;
+  const same = m === ch.mode && (m === "none" || (aiPick.live === ch.live && (m !== "hybrid" || aiPick.reviewer === ch.reviewer)));
+  const act = `<div class="act"><button class="btn" data-ai-use ${same || task ? "disabled" : ""}>${same ? "In use" : "Use this"}</button>
+     <button class="btn small" data-ai-rate ${aiStatus.rate_task ? "disabled" : ""} title="a short anonymous read-only join that only counts messages">Measure the channel's chat rate</button>
+     <label class="note">or type <input type="number" min="1" max="5000" step="1" data-ai-typed value="${aiTypedRate || ""}" style="width:64px" aria-label="chat rate, msgs/min"> msgs/min</label>
+     ${!RATE && (I.hybrids || []).length && m !== "none" ? `<span class="note">Measure the chat (or type its rate) to compare one model with a hybrid</span>` : ""}
+     <span>${crTxt}</span><span class="badT">${esc(aiErr)}</span></div>`;
+  setKeep(P, sum + spec + list + act);
+}
+async function aiPost(url, body){
+  const j = await askJSON(url, body || {}, 30000);
+  if (j.error){ aiErr = j.error; aiErrAt = Date.now(); renderAI(); return null; }
+  aiErr = ""; return j;
+}
+function aiTaskDone(kind){                              // a task finished: a short note on the AI bar, reload the numbers
+  const last = ((aiStatus || {}).last || {})[kind] || {};
+  const say = html => { aiNote = html; aiNoteAt = Date.now(); };
+  if (kind === "select") say(last.error ? `<span class="badT">not changed: ${esc(last.error)}</span>` : `switched in ${last.seconds} s`);
+  if (kind === "speed" || kind === "chatrate") aiNote = "";
+  aiPick = null; aiPickByUser = false;
+  loadAI().then(() => {
+    const L = (aiInfo && aiInfo.last || {})[kind] || {};
+    const lab = ((aiInfo.rows || []).find(r => r.id === L.model) || {}).label || L.model;
+    // the setup's own numbers are on the line already: the note says what the check found, its details in the tooltip
+    if (kind === "speed") say(L.error ? `<span class="badT">speed check: ${esc(L.error)}</span>`
+      : `<span title="${esc([`${L.person_s} s per person read`, L.num_gpu != null ? `${L.num_gpu} GPU layers` : "", `${L.aborts} runner aborts in ${L.calls} calls`, ...(L.notes || [])].filter(Boolean).join("; "))}">Checked ${esc(shortName(lab))}: ${L.keepup_plus ? "≥" : "~"}${L.keepup} msgs/min${L.aborts ? ` · <span class="badT">${L.aborts} failed calls</span>` : ""}</span>`);
+    if (kind === "chatrate" && L.error) say(`<span class="badT">chat rate: ${esc(L.error)}</span>`);
+    aiRedraw();
+  });
+}
+function aiOnStatus(r){
+  aiStatus = r.ai || {};
+  const k = aiStatus.task ? aiStatus.task.kind : null;
+  if (aiTaskKind && !k) aiTaskDone(aiTaskKind);
+  const rk = aiStatus.rate_task ? "chatrate" : null;           // the chat count runs apart (no GPU)
+  if (aiRateKind && !rk) aiTaskDone("chatrate");
+  aiRateKind = rk;
+  aiTaskKind = k;
+  if (mode === "live" && (!aiInfo && !aiSeq || aiWasRunning && !running && !lastStatus.stopping
+      || !aiInfo && aiErr && Date.now() - aiLoadAt >= AI_RETRY_MS)) loadAI();      // FE-4: a failed first read retries
+  aiWasRunning = running || !!lastStatus.stopping;
+  aiRedraw();
+}
+$("aiPanel").addEventListener("click", async e => {
+  const t = e.target.closest("[data-ai-use],[data-ai-speed],[data-ai-rate],[data-ai-cancel],[data-ai-toggle]");
+  if (!t) return;
+  if (t.dataset.aiToggle !== undefined){ aiHidden = !aiHidden; try { localStorage.setItem("cw_ai_hidden", aiHidden ? "1" : "0"); } catch(e){} renderAI(); return; }
+  if (t.dataset.aiCancel !== undefined){ await aiPost("/api/ai/cancel"); return; }
+  if (t.dataset.aiSpeed){ e.preventDefault(); aiNote = ""; if (await aiPost("/api/ai/speed", {model: t.dataset.aiSpeed})) aiTaskKind = "speed"; return; }
+  if (t.dataset.aiRate !== undefined){
+    const c = ($("chanInput").value || "").split(/[\s,]+/).map(s => s.trim().toLowerCase().replace(/^#/, "")).filter(Boolean)[0];
+    if (!c){ aiErr = "type the channel first (above, beside Start)"; renderAI(); return; }
+    aiTypedRate = null; try { localStorage.setItem("cw_ai_rate", ""); } catch(e){}      // the measured rate replaces a typed one
+    if (await aiPost("/api/ai/chatrate", {channel: c, seconds: 60})) aiRateKind = "chatrate"; return;
+  }
+  if (t.dataset.aiUse !== undefined){ aiNote = ""; if (await aiPost("/api/ai/select", aiPick)) aiTaskKind = "select"; }
+});
+$("aiPanel").addEventListener("change", async e => {
+  const t = e.target;
+  if (t.dataset.aiRow){ aiPickByUser = true; aiPick = {mode: "single", live: t.dataset.aiRow, reviewer: null}; renderAI(); }
+  else if (t.dataset.aiNone !== undefined){ aiPickByUser = true; aiPick = {mode: "none", live: (aiInfo.choice || {}).live, reviewer: null}; renderAI(); }
+  else if (t.dataset.aiHyb){ const [l, r] = t.dataset.aiHyb.split("|"); aiPickByUser = true; aiPick = {mode: "hybrid", live: l, reviewer: r}; renderAI(); }
+  else if (t.dataset.aiTyped !== undefined){
+    aiTypedRate = +t.value > 0 ? Math.min(+t.value, 5000) : null;
+    try { localStorage.setItem("cw_ai_rate", aiTypedRate ? String(aiTypedRate) : ""); } catch(e){}
+    // after a Tab has moved focus on, so the redraw keeps it where it went; guarded (FE-10, round 2): the change fires on
+    // the mousedown that leaves the box for a button, and a redraw under that press would drop its click
+    setTimeout(aiRedraw, 0);
+  }
+  else if (t.dataset.aiOv){
+    aiOv = {...((aiInfo && aiInfo.classes) || {}), [t.dataset.aiOv]: t.value}; delete aiOv.overridden;
+    await askJSON("/api/ai/override", {vram: aiOv.vram, ram: aiOv.ram}, 10000);
+    aiPick = null; aiPickByUser = false; loadAI(true);
+  }
+});
+function pfText(A){                                   // the hybrid's two models in memory: is the next review's swap quick?
+  const pf = (A || {}).prefetch, sw = ((A || {}).review || {}).swap || {};
+  if (!pf || pf.state === "none") return "";
+  if (pf.state === "ready") return `<span class="okT" data-pf="ready" title="the reviewer was read into memory${pf.at ? " by " + hhmm(Date.parse(pf.at)) : ""} and both models' files are held open, so a review's swap does not read them from disk; estimate: ${esc(sw.label || "")}">Models in memory · Swap ~${fmtMin(sw.s || 35)}</span>`;
+  if (pf.state === "reading") return `<span class="note" data-pf="reading" title="read slowly so the live AI keeps its speed; paused while a model loads">Loading the reviewer into memory: ${pf.done_gb} of ${pf.total_gb} GB</span>`;
+  const measured = /^(last review here|last loads here|reviewer from disk)/.test(sw.label || "");
+  return measured ? `<span class="warnT" data-pf="cold" title="${esc(sw.label)}">First review slower: ~${fmtMin(sw.s)} to load the reviewer from disk</span>`
+    : `<span class="warnT" data-pf="cold" title="the first review reads the models from disk, which can take minutes">Reviewer not in memory yet: the first review is slower</span>`;
+}
+// the hybrid's Review button, at the top of the watchlist: one press = one swap for every chatter with new content
+let scopeAlt = false;                                   // the checkbox: the other scope for this press
+// a refused Review or Cancel: its error stays in the box for REVIEW_ERR_MS across redraws, then goes (FE-5)
+const REVIEW_ERR_MS = 20000;
+let reviewErr = null;                                   // {msg, at}
+function renderReview(){
+  const box = $("reviewBox"), A = aiStatus || {}, R = A.review;
+  const show = A.mode === "hybrid" && (running || mode === "replay") && !!R;
+  box.hidden = !show;
+  if (!show) return;
+  const def = A.scope_default || "b", scope = scopeAlt ? (def === "b" ? "a" : "b") : def, s = R[scope] || {chatters: 0};
+  const task = A.task && A.task.kind === "review" ? A.task : null, other = A.task && !task;
+  // owner 2026-11-10: the button and its time on the first line; under it the checkbox and the count it covers, split into
+  // the Watchlist and everyone else with a new toxic message (scope b = the Watchlist + chatters with a toxic line not on it;
+  // a warning chip alone, Flagged in chat, does not bring a chatter into the review: audit polish F4)
+  const nA = (R.a || {}).chatters || 0, nB = (R.b || {}).chatters || 0, nOther = Math.max(0, nB - nA);
+  const altTxt = def === "b" ? "Review Watchlist only" : "Also review others with toxic messages";
+  const split = scope === "b" ? `<b>${nB}</b> chatter${nB === 1 ? "" : "s"} with new messages: <b>${nA}</b> on the Watchlist + <b>${nOther}</b> other${nOther === 1 ? "" : "s"} with toxic messages`
+    : `<b>${nA}</b> Watchlist chatter${nA === 1 ? "" : "s"} with new messages${nOther ? ` (${nOther} other${nOther === 1 ? "" : "s"} with toxic messages not included)` : ""}`;
+  // the pair's own quality from GET /api/ai (FE-3: was the 12B + 31B pair's +62% / +54% for every pair)
+  const h = aiInfo && (aiInfo.hybrids || []).find(x => x.live === A.live && x.reviewer === A.reviewer), Q = h && h.quality;
+  const tip = `${s.chatters} chatters with new messages (${s.lines} new lines to re-read). `
+    + `The reviewer reads each as a person and re-reads their new lines; the live AI pauses meanwhile and catches up after (chat keeps queueing). Per chatter: ${esc(R.basis)}; swap: ${esc((R.swap || {}).label || "")}.`
+    + (Q ? ` Accuracy: +${Q.b_over_no_ai}% over No AI reviewing all flagged chatters, +${Q.a_over_no_ai}% the Watchlist only.` : "");
+  const scopeTip = def === "b" ? `Fewer chatters and a shorter pause${Q ? `; accuracy +${Q.a_over_no_ai}% instead of +${Q.b_over_no_ai}%` : ""}.`
+    : `More chatters and a longer pause${Q ? `; accuracy +${Q.b_over_no_ai}% instead of +${Q.a_over_no_ai}%` : ""}.`;
+  const rvInfo = `The stronger model reads each of these ${s.chatters} chatters as a whole and re-checks their ${s.lines} new messages, then the live model takes over again. While it runs the live reading pauses; chat waits in the queue and is caught up after.`;
+  const last = (A.last || {}).review;
+  const lastTxt = !task && last && last.at ? `<div class="rvrow"><span class="note" data-review-last title="${esc(last.error || last.swap_back_error || "")}">Last review: ${last.reviewed}/${last.chatters} reviewed${last.failed ? `, ${last.failed} failed` : ""}${last.cancelled ? ", cancelled" : ""}${last.stopped_for_live ? `, stopped to keep the live AI current (${last.stopped_for_live.left} left for the next press)` : ""}${last.error ? `, <span class="badT">${esc(last.error)}</span>` : ""} in ${fmtMin((last.timings || {}).outage_s || 0)}${last.catchup_s != null ? `; live caught up ${fmtMin(last.catchup_s)} after` : ""}</span></div>` : "";
+  const err = reviewErr && Date.now() - reviewErr.at < REVIEW_ERR_MS ? ` <span class="badT" data-review-err>${esc(reviewErr.msg)}</span>` : "";
+  setKeep(box, task
+    ? `<div class="rvrow"><span class="warnT">${esc(taskText(task))}</span><button class="btn" data-review-cancel>Cancel</button>${err}</div>`
+    : `<div class="rvrow"><button class="btn" data-review ${!s.chatters || other || lastStatus.stopping ? "disabled" : ""} title="${esc(tip)}">${s.chatters ? `Review ${s.chatters}` : "Nothing new to review"}</button>`
+      + (s.chatters ? `<span title="${esc(tip)}">~${fmtMin(s.seconds)} · the live AI pauses meanwhile${infoBtn("review", rvInfo)}</span>` : "") + err + infoPop("review", rvInfo) + `</div>`
+      + `<div class="rvrow"><label title="${esc(scopeTip)}"><input type="checkbox" data-scope ${scopeAlt ? "checked" : ""}>${altTxt}</label>${infoBtn("scope", scopeTip)}<span class="note" data-review-split>${split}</span>${infoPop("scope", scopeTip)}</div>`
+      + lastTxt);
+}
+$("reviewBox").addEventListener("click", async e => {
+  const i = e.target.closest("[data-info]");
+  if (i){ infoOpen = infoOpen === i.dataset.info ? null : i.dataset.info; renderReview(); return; }
+  const t = e.target.closest("[data-review],[data-review-cancel]"); if (!t) return;
+  e.stopPropagation();
+  const A = aiStatus || {}, def = A.scope_default || "b", scope = scopeAlt ? (def === "b" ? "a" : "b") : def;
+  const j = await askJSON(t.dataset.reviewCancel !== undefined ? "/api/ai/cancel" : "/api/review", {scope}, 30000);
+  reviewErr = j.error ? {msg: j.error, at: Date.now()} : null;
+  renderReview();
+});
+$("reviewBox").addEventListener("keydown", e => { if (e.key === "Escape" && infoOpen){ infoOpen = null; renderReview(); } });   // Escape folds an open (i)
+$("reviewBox").addEventListener("change", e => { if (e.target.dataset.scope !== undefined){ scopeAlt = e.target.checked; renderReview(); } });
+
+// ---------------------------------------------------------------- clicks and keys
+function activate(t, e){
+  if (t.dataset.rcopt){ chooseRc(t); return; }
+  if (t.dataset.rc !== undefined){ if (rcOpener === t) closeRc(); else openRc(t); return; }
+  if (t.dataset.evbox) return;                          // a click inside the dropdown is not a click on the card
+  if (t.dataset.ev !== undefined){ toggleEv(t.dataset.ev); return; }
+  if (t.dataset.role !== undefined || t.dataset.unrole !== undefined){ setRole(t); return; }
+  if (t.id === "rolesBtn"){ opener = t; openRoles(); return; }
+  if (t.dataset.close){ closeDrawer(); return; }
+  if (t.dataset.reload && card){ if (card.uid) openCard(card.uid, card.ch); else openRoles(); return; }
+  if (t.id === "showAllBtn"){ showAll = !showAll; renderWatch(); return; }
+  if (t.id === "olderBtn"){ showOlder(); return; }
+  if (t.dataset.ch){ if (channel !== t.dataset.ch){ channel = t.dataset.ch; switchView(); } return; }
+  if (t.dataset.f){ filter = t.dataset.f; try { localStorage.setItem("cw_filter", filter); } catch(e){}
+    renderFilters(); switchView(); return; }
+  if (t.dataset.uid){ openCard(t.dataset.uid, channel, t); }
+}
+const TARGETS = "[data-rcopt],[data-rc],[data-evbox],[data-ev],[data-role],[data-unrole],[data-uid],[data-ch],[data-f],[data-close],[data-reload],#showAllBtn,#olderBtn,#rolesBtn";
+document.addEventListener("click", e => {
+  if ($("rcMenu") && !e.target.closest("#rcMenu,[data-rc]")) closeRc(false);      // a click elsewhere closes the menu
+  const t = e.target.closest(TARGETS); if (t) activate(t, e); });
+// the menu is placed beside its ⋯: when what holds the ⋯ scrolls, it would sit beside another line, so it closes (N-2)
+document.addEventListener("scroll", e => {
+  const el = $("rcMenu"); if (!el || !rcOpener || rcBusy) return;
+  const box = e.target === document ? document.documentElement : e.target;
+  if (box && box.contains && !el.contains(box) && box.contains(rcOpener)) closeRc(false);
+}, true);
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && $("rcMenu")){ closeRc(); return; }
+  if (e.key === "Escape" && evOpen && evOpen.ch === channel){              // folds the open dropdown it is in (LF3-6)
+    const c = $("heads").querySelector(`.hu[data-uid="${CSS.escape(String(evOpen.uid))}"]`);
+    if (c && c.contains(document.activeElement)){ toggleEv(evOpen.uid); return; }
+  }
+  if (e.key === "Escape" && D.classList.contains("open")){ closeDrawer(); return; }
+  // the open card is a modal dialog: Tab and Shift+Tab stay inside it (N-13, LF-5)
+  if (e.key === "Tab" && D.classList.contains("open") && !$("rcMenu") && D.contains(document.activeElement)){
+    const f = [...D.querySelectorAll('button, summary, a[href], input, [tabindex="0"]')].filter(x => !x.disabled && x.getClientRects().length);
+    if (f.length && e.shiftKey && document.activeElement === f[0]){ e.preventDefault(); f[f.length - 1].focus(); }
+    else if (f.length && !e.shiftKey && document.activeElement === f[f.length - 1]){ e.preventDefault(); f[0].focus(); }
+  }
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches('[role="button"][data-uid],[role="button"][data-ev]')){
+    e.preventDefault(); activate(e.target, e); }
+});
+renderFilters();
+connect();
+</script>
+</body>
+</html>

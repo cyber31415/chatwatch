@@ -1,0 +1,22 @@
+chatwatch
+Copyright 2026 the chatwatch authors.
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Included in this repository, made for chatwatch:
+- data/models/tox_head.json: a toxicity head (a small MLP over the encoders' outputs) trained on labels a local
+  language model gave to public Twitch chat. Its per-channel test report is not included.
+- data/models/risk_lr.json, persist_lr.json, types.json: small linear and clustering models fitted on aggregate
+  per-chatter features of public Twitch chat. No chat text or usernames are included.
+- src/chatwatch/assets/: word and pattern lists, an emote vocabulary (public emote names), a list of known chat bots,
+  the model catalogue and speed tables.
+
+Downloaded at first use, not included (each under its own licence):
+- protectai/unbiased-toxic-roberta-onnx (Hugging Face), Apache-2.0: an ONNX export of unitary/unbiased-toxic-roberta.
+- sentence-transformers/all-MiniLM-L6-v2 (Hugging Face), Apache-2.0.
+- Gemma 4 models through Ollama (gemma4:31b-it-qat, gemma4:12b-it-qat, gemma4:e4b-it-qat), Google, Apache-2.0.
+- Gemma 4 QAT assistant drafters as GGUF files published by Unsloth (unsloth/gemma-4-*-it-qat-GGUF, MTP/), Apache-2.0.
+- Ollama (ollama/ollama container images), MIT.
+- Python packages in the container: aiohttp (Apache-2.0), websockets (BSD-3-Clause), numpy (BSD-3-Clause),
+  onnxruntime (MIT), tokenizers (Apache-2.0).
+
+Twitch is a trademark of Twitch Interactive, Inc. chatwatch is not affiliated with or endorsed by Twitch.

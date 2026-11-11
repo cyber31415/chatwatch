@@ -1,0 +1,12 @@
+{
+ "_about": "The MTP drafters (Gemma 4 QAT 'assistant' models, Apache-2.0) as F16 GGUF files published by Unsloth, pinned to a commit and checked by sha256. bin/ollama.sh install downloads the one a model needs into the Ollama store's drafts/ folder under the name its Modelfile uses. They are tensor-for-tensor the drafters chatwatch was measured with (converted from google/gemma-4-*-it-qat-q4_0-unquantized-assistant).",
+ "31b": {"file": "gemma4-31b-assistant-f16.gguf", "size": 954862080,
+         "url": "https://huggingface.co/unsloth/gemma-4-31B-it-qat-GGUF/resolve/43cc1aeb31adf47ec06a854507ce552cd9862e6f/MTP/mtp-gemma-4-31B-it-F16.gguf",
+         "sha256": "cbb3fde9fef201af9506c80eb9f5baa9840dfddf8dc94d83d1b9a24aa4b95b17"},
+ "12b": {"file": "gemma4-12b-assistant-f16.gguf", "size": 861538816,
+         "url": "https://huggingface.co/unsloth/gemma-4-12B-it-qat-GGUF/resolve/980b060c40a8539ac159e0501a3e0f66a6365af3/MTP/mtp-gemma-4-12B-it-F16.gguf",
+         "sha256": "f5770109d1f15e502fc32ec04dd6a0b132b71f8f5237b74189a003897eb8327d"},
+ "e4b": {"file": "gemma4-e4b-assistant-f16.gguf", "size": 171785536,
+         "url": "https://huggingface.co/unsloth/gemma-4-E4B-it-qat-GGUF/resolve/8c5a9e4fd5482e2be20fe0bf013b4c262a8f4265/MTP/mtp-gemma-4-E4B-it-F16.gguf",
+         "sha256": "d47d1d3cce9e599b3df39f6ec65e1ae0db0f534006a6d56e398f19ca47f1c261"}
+}

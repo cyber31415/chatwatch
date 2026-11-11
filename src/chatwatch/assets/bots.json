@@ -1,0 +1,215 @@
+{
+ "version": "0.9.0",
+ "how": "Chat bots the engine skips (exact logins, plus legacy_style.KNOWN_BOTS); no suffix rule. Each was reviewed by what it posts.",
+ "kept_scored": [],
+ "bots": [
+  {
+   "login": "aecrobot",
+   "reason": "timeout-game output"
+  },
+  {
+   "login": "analyticsbot",
+   "reason": "vote statistics on command"
+  },
+  {
+   "login": "blammobot",
+   "reason": "points / game command responses (\"you have 911 points\")"
+  },
+  {
+   "login": "botisimo",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "botnextdoor",
+   "reason": "command responses; the lolebot program (\"1.72 DEV ... shutting down\")"
+  },
+  {
+   "login": "botrixoficial",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "bottyvv",
+   "reason": "a channel's command bot: clip links, socials"
+  },
+  {
+   "login": "buttsbot",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "chetbotwow",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "commanderroot",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "deepdankdungeonbot",
+   "reason": "dungeon game output (\"<user> | You come across ...\")"
+  },
+  {
+   "login": "dyingnewbot",
+   "reason": "\"The time here is now: ...\" command output"
+  },
+  {
+   "login": "esmountbot",
+   "reason": "/me facts and chat summaries on command"
+  },
+  {
+   "login": "excellibot",
+   "reason": "/me roll and timer command output"
+  },
+  {
+   "login": "feelsstrongbot",
+   "reason": "game bot: [Basement Heist] posts and announcements"
+  },
+  {
+   "login": "feezybot",
+   "reason": "points command responses"
+  },
+  {
+   "login": "fossabot",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "fourthwallhq",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "jbotbtw",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "kloybot",
+   "reason": "/me trivia game output"
+  },
+  {
+   "login": "kofistreambot",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "ksyncbot",
+   "reason": "error and name-change reports"
+  },
+  {
+   "login": "lamonsterbot",
+   "reason": "duel game output"
+  },
+  {
+   "login": "lolebot",
+   "reason": "bot status and sub-thanks output"
+  },
+  {
+   "login": "lolrankbot",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "mjgiveawaybot",
+   "reason": "giveaway-winner notice"
+  },
+  {
+   "login": "moobot",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "nightbot",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "okayegbot",
+   "reason": "egg game command responses"
+  },
+  {
+   "login": "own3d",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "phantombot",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "potatbotat",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "pretzelrocks",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "puptime",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "retpaladinbot",
+   "reason": "subscription notices (\"<user> subscribed at Tier 1\")"
+  },
+  {
+   "login": "revlobot",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "schnozebot",
+   "reason": "command responses: last-seen and roulette results"
+  },
+  {
+   "login": "sery_bot",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "shrimp__bot",
+   "reason": "timed socials and local-time output"
+  },
+  {
+   "login": "snusbot",
+   "reason": "timed announcements (follow on Twitter, Discord) and sub thanks"
+  },
+  {
+   "login": "soundalerts",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "streamcaptainbot",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "streamelements",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "streamlabs",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "streamlootsbot",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "supibot",
+   "reason": "utility bot: reminders, daily cookies, command output"
+  },
+  {
+   "login": "tangiabot",
+   "reason": "TTS-redemption notices"
+  },
+  {
+   "login": "thepositivebot",
+   "reason": "/me command output: [Cookies], [RandomLine]"
+  },
+  {
+   "login": "titlechange_bot",
+   "reason": "/me title / game change notices"
+  },
+  {
+   "login": "whammobot",
+   "reason": "[Trivia] / [Scramble] game output"
+  },
+  {
+   "login": "wizebot",
+   "reason": "command / utility bot"
+  },
+  {
+   "login": "wzbot",
+   "reason": "watch-time statistics on command"
+  }
+ ]
+}

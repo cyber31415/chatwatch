@@ -1,0 +1,199 @@
+{
+ "version": "g2 2026-10-25",
+ "source": "research/04_coded_language.md (ADL hate-symbol database, GLAAD, incels.wiki, Mendelsohn et al. 2023, Blue Square Alliance); written by Claude, read by the local teacher only",
+ "use": "The teacher (llm.rate_toxicity_window with reference=True) gets the entries whose trigger matches a line in the window. Triggers are broader than the keyword layer (vocab.py): they only inform the LLM, which decides from context, while the keyword layer raises scores directly. 'jargon' entries are not toxic on their own.",
+ "entries": [
+  {
+   "id": "foid",
+   "kind": "slur",
+   "trigger": "\\bf(?:e+m+)?o+i+d+s?\\b",
+   "means": "\"foid\" / \"femoid\" (\"female humanoid\"): incel slur that dehumanises women. A slur even when said ironically or as a meme.",
+   "innocent": ""
+  },
+  {
+   "id": "roastie",
+   "kind": "slur",
+   "trigger": "\\broasties?\\b",
+   "means": "\"roastie\": incel slur for a sexually active woman (a crude claim about her body).",
+   "innocent": "roast / roasted / roasting (jokes, cooking) are unrelated"
+  },
+  {
+   "id": "landwhale",
+   "kind": "slur",
+   "trigger": "\\bland\\s*whales?\\b",
+   "means": "\"landwhale\": dehumanising insult for a fat person, usually a woman.",
+   "innocent": ""
+  },
+  {
+   "id": "noodlewhore",
+   "kind": "slur",
+   "trigger": "\\bnoodle\\s*whores?\\b",
+   "means": "\"noodlewhore\": racist and misogynist slur for an Asian woman (or a woman dating Asian men).",
+   "innocent": ""
+  },
+  {
+   "id": "racial_cel",
+   "kind": "slur",
+   "trigger": "\\b(?:curry|rice|nig|ethni)cels?\\b",
+   "means": "\"currycel\", \"ricecel\" and similar: incel slurs combining race and \"incel\".",
+   "innocent": ""
+  },
+  {
+   "id": "er_glorify",
+   "kind": "violent",
+   "trigger": "\\bsaint\\s+(?:elliot|er)\\b|\\bsupreme\\s+gentlem[ae]n\\b|\\bbeta\\s+(?:uprising|rebellion)\\b|\\bgo(?:ing)?\\s+er\\b",
+   "means": "\"Saint Elliot\", \"supreme gentleman\", \"beta uprising\", \"go ER\": glorifying the Isla Vista killer and incel mass murder. A violent threat or glorification of violence.",
+   "innocent": "\"ER\" alone is usually the hospital"
+  },
+  {
+   "id": "rope",
+   "kind": "violent",
+   "trigger": "\\b(?:just|go|pls|please)\\s+rope\\b|\\brope\\s+(?:yourself|urself|yourselves)\\b|\\bcope\\s*(?:,|or|and)?\\s*rope\\b",
+   "means": "\"just rope\", \"rope yourself\", \"cope or rope\": telling someone to hang themselves, the same as \"kys\".",
+   "innocent": "a rope in a game or in real life (climbing, ropes course) is unrelated"
+  },
+  {
+   "id": "dotr",
+   "kind": "violent",
+   "trigger": "\\bday\\s+of\\s+(?:the\\s+)?rope\\b|\\bdotr\\b",
+   "means": "\"Day of the Rope\" / \"DOTR\": white-supremacist fantasy of mass lynching (from The Turner Diaries).",
+   "innocent": ""
+  },
+  {
+   "id": "join_41",
+   "kind": "violent",
+   "trigger": "\\bjoin\\s+the\\s+41\\b|\\b41\\s*(?:%|percent)",
+   "means": "\"join the 41%\" / \"41% yourself\": telling a trans person to kill themselves (from a suicide-attempt statistic).",
+   "innocent": "41% as a number: health, battery, odds, win rate"
+  },
+  {
+   "id": "1488",
+   "kind": "hate_code",
+   "trigger": "(?<!\\d)(?:14\\s*[/\\-.]?\\s*88|88\\s*[/\\-.]?\\s*14)(?!\\d)|\\b(?:the\\s+)?14\\s+words\\b|\\bsecure\\s+the\\s+existence\\s+of\\s+our\\s+people\\b",
+   "means": "1488 / 14/88 / \"14 words\": neo-Nazi code (14 = a white-supremacist slogan, 88 = \"Heil Hitler\").",
+   "innocent": "prices, scores or IDs that happen to contain 14 and 88"
+  },
+  {
+   "id": "echo",
+   "kind": "hate_code",
+   "trigger": "\\({3}\\s*[^()]{1,40}\\s*\\){3}",
+   "means": "(((name))) triple parentheses: antisemitic \"echo\" that marks a person or group as Jewish.",
+   "innocent": "an echo/reverb sound effect, ASCII art; some Jewish users bracket their own names in solidarity"
+  },
+  {
+   "id": "happy_merchant",
+   "kind": "hate_code",
+   "trigger": "\\bhappy\\s+merchants?\\b",
+   "means": "\"happy merchant\": antisemitic caricature of a Jewish man.",
+   "innocent": "a merchant NPC in a game who is literally described as happy"
+  },
+  {
+   "id": "gorillion",
+   "kind": "hate_code",
+   "trigger": "\\b(?:6|six)\\s*gorillion\\b",
+   "means": "\"6 gorillion\": mockery of the Holocaust's six million victims (Holocaust denial).",
+   "innocent": ""
+  },
+  {
+   "id": "zog_jq",
+   "kind": "hate_code",
+   "trigger": "\\bz\\.?o\\.?g\\b|\\bjq\\b|\\bjewish\\s+question\\b|\\bkhazars?\\b",
+   "means": "\"ZOG\" (Zionist Occupied Government), \"JQ\" / \"the Jewish question\", \"Khazars\": antisemitic conspiracy codes.",
+   "innocent": "Khazars in a history or strategy-game context; \"zog\" as a made-up word"
+  },
+  {
+   "id": "13_50",
+   "kind": "hate_code",
+   "trigger": "(?<!\\d)13\\s*%?\\s*[/\\-,]\\s*(?:50|52|90)\\s*%?(?!\\d)|\\bdespite\\s+(?:being\\s+|making\\s+up\\s+)?(?:only\\s+)?13\\s*%",
+   "means": "\"13/50\", \"13/52\", \"despite being 13%\": racist pseudo-statistic claiming Black Americans commit most crime.",
+   "innocent": "13/50 as a score, health, progress or ratio in a game"
+  },
+  {
+   "id": "wn_slogans",
+   "kind": "hate_code",
+   "trigger": "\\brahowa\\b|\\bwpww\\b|\\bsieg\\s+heil\\b|\\bwhite\\s+power\\b",
+   "means": "\"RaHoWa\", \"WPWW\", \"sieg heil\", \"white power\": white-supremacist slogans.",
+   "innocent": "condemning or reporting them (\"he said white power, that's insane\")"
+  },
+  {
+   "id": "troon",
+   "kind": "slur",
+   "trigger": "\\btroo?n(?:er)?s?\\b|\\btrann(?:y|ies)\\b",
+   "means": "\"troon\", \"trooner\", \"tranny\": transphobic slurs.",
+   "innocent": "\"tranny\" for a car transmission in some dialects"
+  },
+  {
+   "id": "groomer",
+   "kind": "hate_code",
+   "trigger": "\\bgroomers?\\b",
+   "means": "\"groomer\" / \"OK groomer\" aimed at LGBTQ people or their supporters: anti-LGBTQ smear implying child abuse.",
+   "innocent": "a pet or dog groomer; a sincere report about an actual predator"
+  },
+  {
+   "id": "goy",
+   "kind": "coded",
+   "trigger": "\\bgoy(?:im|s|slop|ish)?\\b",
+   "means": "\"goyslop\" (food or media \"for goyim\") and mocking \"goyim\"/\"goy\": antisemitic code from a conspiracy that Jews control or poison non-Jews.",
+   "innocent": "\"goy\"/\"goyim\" used plainly by Jewish speakers or in a sincere religious context"
+  },
+  {
+   "id": "early_life",
+   "kind": "coded",
+   "trigger": "\\bearly\\s+life\\b",
+   "means": "\"check his early life section\": antisemitic insinuation that someone is Jewish (Wikipedia's \"Early life\" section).",
+   "innocent": "a person's or character's actual childhood (\"his early life was rough\")"
+  },
+  {
+   "id": "noticing",
+   "kind": "coded",
+   "trigger": "\\b(?:the\\s+)?noticing\\s+(?:will\\s+continue|intensifies)\\b|\\bimpossible\\s+not\\s+to\\s+notice\\b|\\bno+ticers?\\b|#noticing\\b|\\b(?:just|im|i'm|keep)\\s+noticing\\s+(?:who|how\\s+many|that\\s+(?:they|all)|the\\s+same)\\b",
+   "means": "\"the noticing\", \"noticing will continue\", \"I'm just noticing who runs...\", \"noticer\": insinuation that Jews (sometimes another group) secretly control things.",
+   "innocent": "noticing something ordinary (lag, a bug, a detail on stream)"
+  },
+  {
+   "id": "every_single_time",
+   "kind": "coded",
+   "trigger": "\\bevery\\s+single\\s+time\\b",
+   "means": "\"every single time\" said about who is behind something: antisemitic insinuation.",
+   "innocent": "the ordinary phrase (\"he dies every single time\")"
+  },
+  {
+   "id": "globalist",
+   "kind": "coded",
+   "trigger": "\\bglobalists?\\b|\\brothschilds?\\b|\\bsoros\\b",
+   "means": "\"globalists\", \"the Rothschilds\", \"Soros\" as a hidden cabal: coded antisemitic conspiracy talk.",
+   "innocent": "ordinary politics or economics talk; mocking or quoting the conspiracy"
+  },
+  {
+   "id": "replacement",
+   "kind": "coded",
+   "trigger": "\\bgreat\\s+replacement\\b|\\bwhite\\s+genocide\\b|\\bit'?s\\s+o(?:kay|k)\\s+to\\s+be\\s+white\\b|\\biotbw\\b",
+   "means": "\"great replacement\", \"white genocide\", \"it's okay to be white\": white-nationalist conspiracy slogans.",
+   "innocent": "discussing or condemning the conspiracy theory"
+  },
+  {
+   "id": "groyper",
+   "kind": "coded",
+   "trigger": "\\bgroypers?\\b|\\bhonkler\\b",
+   "means": "\"groyper\" / \"honkler\": Pepe variants and a movement tied to white nationalism.",
+   "innocent": "talking about groypers as a political movement or news topic"
+  },
+  {
+   "id": "alphabet",
+   "kind": "coded",
+   "trigger": "\\balphabet\\s+(?:people|mafia|soup|crowd|gang|community)\\b|\\bagp\\b",
+   "means": "\"alphabet people\", \"alphabet mafia\" for LGBTQ people, and \"AGP\" (\"autogynephilia\") aimed at trans women: anti-LGBTQ put-downs.",
+   "innocent": "\"alphabet soup\" for a jumble of acronyms"
+  },
+  {
+   "id": "incel_jargon",
+   "kind": "jargon",
+   "trigger": "\\bbl(?:a|x|4)?ck\\s*-?\\s*pill(?:ed|s)?\\b|\\bhypergam(?:y|ous)\\b|\\bn?awalt\\b|\\bldar\\b|\\bsmv\\b|\\bsub\\s*-?\\s*[3-5]s?\\b|\\bstac(?:y|ies)\\b|\\bbeckies\\b|\\bchadlites?\\b|\\b(?:true|fake|vol|mental|grey|gray|fem|height|wrist|frame|bald|short|skull|eye|face)cels?\\b|\\bjbw\\b|\\bkhhv\\b|\\bbeta\\s*bu(?:x|xx|cks)\\b|\\bover\\s+for\\s+\\w+cels?\\b|\\boneitis\\b|\\b(?:rope|sui|rage|life)fuel\\b",
+   "means": "incel jargon (\"blackpill\", \"hypergamy\", \"AWALT\" = all women are like that, \"LDAR\" = lie down and rot, \"SMV\", \"sub5\", \"Stacies\", \"femcel\", \"heightcel\", \"betabux\", \"JBW\", \"ropefuel\"). Not toxic on its own; toxic when used to demean women or a person (\"AWALT, they're all whores\").",
+   "innocent": "\"Stacy\"/\"Becky\" as real names; a cel/animation cel; the jargon used to describe or discuss"
+  }
+ ],
+ "changes": [
+  "g1 -> g2 (from the coded set's dev half only): 'noticing' triggers only on the coded phrases, not every 'noticing'; 'jogger' removed (no coded use seen, only trousers and game items); clearer innocent uses for groyper and globalist"
+ ]
+}

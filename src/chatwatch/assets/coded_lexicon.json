@@ -1,0 +1,468 @@
+{
+    "version": "2026-10-25",
+    "source": "research/04_coded_language.md",
+    "tiers": {
+        "T1": "dehumanizing slur: raises message toxicity; marker input (room-discounted)",
+        "T1-violent": "violent glorification / suicide-baiting: high toxicity, threat",
+        "U": "unambiguous hate code: raises message toxicity; marker input",
+        "T2": "ideology jargon: person marker (breadth), no toxicity alone",
+        "C": "context-dependent dog-whistle: person marker (breadth) only",
+        "T3": "mainstreamed slang: room profile only, never a marker"
+    },
+    "terms": [
+        {
+            "id": "foid",
+            "family": "incel",
+            "tier": "T1",
+            "regex": "\\bf(?:e+m+)?o+i+d+s?\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "dehumanizing term for women; drifting ironic (Dazed 2026)",
+            "source": "research/04"
+        },
+        {
+            "id": "roastie",
+            "family": "incel",
+            "tier": "T1",
+            "regex": "\\broasties?\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "never match roast/roasted/roasting",
+            "source": "research/04"
+        },
+        {
+            "id": "landwhale",
+            "family": "incel",
+            "tier": "T1",
+            "regex": "\\bland\\s*whales?\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "noodlewhore",
+            "family": "incel",
+            "tier": "T1",
+            "regex": "\\bnoodle\\s*whores?\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "racial_cel",
+            "family": "incel",
+            "tier": "T1",
+            "regex": "\\b(?:curry|rice|nig)cels?\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "er_glorify",
+            "family": "incel",
+            "tier": "T1-violent",
+            "regex": "\\bsaint\\s+(?:elliot|er)\\b|\\bsupreme\\s+gentlem[ae]n\\b|\\bbeta\\s+(?:uprising|rebellion)\\b|\\bcope\\s*,?\\s*rope\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "rope_directed",
+            "family": "incel",
+            "tier": "T1-violent",
+            "regex": "\\b(?:just|go|pls|please)\\s+rope\\b|\\brope\\s+(?:yourself|urself)\\b",
+            "weight": 1.0,
+            "distress_if_first_person": true,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "ropefuel",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\b(?:rope|sui)fuel\\b",
+            "weight": 1.0,
+            "distress_if_first_person": true,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "blackpill",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\bbl(?:a|x|4)?ck\\s*-?\\s*pill(?:ed|s)?\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "redpill",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\bred\\s*-?\\s*pill(?:ed)?\\b",
+            "weight": 0.5,
+            "distress_if_first_person": false,
+            "notes": "Matrix / political use",
+            "source": "research/04"
+        },
+        {
+            "id": "hypergamy",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\bhypergam(?:y|ous)\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "awalt",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\bn?awalt\\b|\\bamalt\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "ldar",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\bldar\\b",
+            "weight": 1.0,
+            "distress_if_first_person": true,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "smv",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\b(?:smv|sexual\\s+market\\s+value)\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "sub5",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\bsub\\s*-?\\s*[3-5]s?\\b|\\bpsl\\s*(?:god|\\d)\\b",
+            "weight": 0.5,
+            "distress_if_first_person": false,
+            "notes": "drifting to T3",
+            "source": "research/04"
+        },
+        {
+            "id": "stacy_becky",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\b(?:stacies|beckies|chadlites?|stacylites?|a\\s+stacy|a\\s+becky)\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "plural/article forms only (real names)",
+            "source": "research/04"
+        },
+        {
+            "id": "cel_category",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\b(?:true|fake|vol|mental|grey|gray)cels?\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "femcel",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\bfemcels?\\b",
+            "weight": 0.5,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "trait_cel",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\b(?:height|wrist|frame|bald|short|skull|eye|face)cels?\\b",
+            "weight": 0.5,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "jbw_khhv",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\bjbw\\b|\\bkhhv\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "betabux",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\bbeta\\s*bu(?:x|xx|cks)\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "over_for_cels",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\bover\\s+for\\s+\\w+cels?\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "oneitis",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\boneitis\\b|\\bchadfish(?:ing)?\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "ragefuel",
+            "family": "incel",
+            "tier": "T2",
+            "regex": "\\b(?:rage|life)fuel\\b",
+            "weight": 0.5,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "mog",
+            "family": "incel",
+            "tier": "T3",
+            "regex": "\\b(?:frame|height|skull|face|jaw|bone)?mog(?:s|ged|ging|ger)?\\b",
+            "weight": 0.15,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "maxxing",
+            "family": "incel",
+            "tier": "T3",
+            "regex": "\\b\\w+max(?:x(?:ing|ed|er)?|ing)\\b",
+            "weight": 0.15,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "looksmax_body",
+            "family": "incel",
+            "tier": "T3",
+            "regex": "\\b(?:mewing|bone\\s*smash(?:ing)?|hunter\\s+eyes|canthal\\s+tilt)\\b",
+            "weight": 0.15,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "1488",
+            "family": "antisemitic",
+            "tier": "U",
+            "regex": "(?<!\\d)(?:14\\s*[/\\-.]?\\s*88|88\\s*[/\\-.]?\\s*14)(?!\\d)|\\b(?:the\\s+)?14\\s+words\\b|\\bsecure\\s+the\\s+existence\\s+of\\s+our\\s+people\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "echo",
+            "family": "antisemitic",
+            "tier": "U",
+            "regex": "\\({3}\\s*[^()]{1,40}\\s*\\){3}",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "self-bracketing solidarity exists",
+            "source": "research/04"
+        },
+        {
+            "id": "happy_merchant",
+            "family": "antisemitic",
+            "tier": "U",
+            "regex": "\\bhappy\\s+merchants?\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "gorillion",
+            "family": "antisemitic",
+            "tier": "U",
+            "regex": "\\b(?:6|six)\\s*gorillion\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "zog_jq",
+            "family": "antisemitic",
+            "tier": "U",
+            "regex": "\\bz\\.?o\\.?g\\b|\\b(?:jq|jewish\\s+question)\\b|\\bkhazars?\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "goyslop",
+            "family": "antisemitic",
+            "tier": "C",
+            "regex": "\\bgoy(?:im|s|slop|ish)?\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "genuine Jewish usage of 'goy' is benign; drifting",
+            "source": "research/04"
+        },
+        {
+            "id": "early_life",
+            "family": "antisemitic",
+            "tier": "C",
+            "regex": "\\b(?:check|read|look\\s+at)\\s+(?:the|his|her|their)\\s+early\\s+life\\b|\\bearly\\s+life\\s+section\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "noticing",
+            "family": "antisemitic",
+            "tier": "C",
+            "regex": "\\b(?:the\\s+)?noticing\\s+(?:will\\s+continue|intensifies)\\b|\\bimpossible\\s+not\\s+to\\s+notice\\b|\\bno+ticers?\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "globalist",
+            "family": "antisemitic",
+            "tier": "C",
+            "regex": "\\bglobalists?\\b",
+            "weight": 0.5,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "13_50",
+            "family": "racist",
+            "tier": "U",
+            "regex": "(?<!\\d)13\\s*%\\s*[/\\-,]?\\s*(?:50|52|90)\\s*%?(?!\\d)|\\bdespite\\s+(?:being\\s+|making\\s+up\\s+)?(?:only\\s+)?13\\s*%",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "dotr",
+            "family": "racist",
+            "tier": "T1-violent",
+            "regex": "\\bday\\s+of\\s+(?:the\\s+)?rope\\b|\\bdotr\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "wn_slogans",
+            "family": "racist",
+            "tier": "U",
+            "regex": "\\brahowa\\b|\\bwpww\\b|\\bsieg\\s+heil\\b|\\bwhite\\s+power\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "replacement",
+            "family": "racist",
+            "tier": "C",
+            "regex": "\\bgreat\\s+replacement\\b|\\bwhite\\s+genocide\\b|\\bit'?s\\s+o(?:kay|k)\\s+to\\s+be\\s+white\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "groyper",
+            "family": "racist",
+            "tier": "C",
+            "regex": "\\bgroypers?\\b|\\bhonkler\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "join_41",
+            "family": "anti_lgbtq",
+            "tier": "T1-violent",
+            "regex": "\\bjoin\\s+the\\s+41\\b|\\b41\\s*%\\s*(?:yourself|urself|yourselves)\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "ok_groomer",
+            "family": "anti_lgbtq",
+            "tier": "U",
+            "regex": "\\bok(?:ay)?\\s+groomer\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        },
+        {
+            "id": "troon",
+            "family": "anti_lgbtq",
+            "tier": "U",
+            "regex": "\\btroons?\\b|\\btrooners?\\b|\\btrann(?:y|ies)\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "not 'tron'; 'tranny' can mean a car transmission",
+            "source": "research/04"
+        },
+        {
+            "id": "alphabet",
+            "family": "anti_lgbtq",
+            "tier": "C",
+            "regex": "\\balphabet\\s+(?:people|mafia)\\b|\\bagp\\b",
+            "weight": 1.0,
+            "distress_if_first_person": false,
+            "notes": "",
+            "source": "research/04"
+        }
+    ],
+    "changes": [
+        "troon: no longer matches 'tron'/'trons' (most of its hits in the capture were Tron); adds 'tranny' (research/04 4.3) (adopted 2026-10-25, docs/FINDINGS: coded_20261025b, false alarms 16 -> 1, toxic caught 18 -> 18)",
+        "1488: adds 'secure the existence of our people' (research/04 4.1)"
+    ]
+}

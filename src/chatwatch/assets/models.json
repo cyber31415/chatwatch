@@ -1,0 +1,909 @@
+{
+ "version": 1,
+ "written_by": "development study (not published)",
+ "baseline": "gpt-oss-safeguard:20b",
+ "tiers": {
+  "A": {
+   "label": "12 GB GPU (Nvidia), 32-96 GB RAM",
+   "short": "12 GB Nvidia",
+   "gpu": "nvidia",
+   "vram": "12",
+   "note": "tiers A-D of the study: RAM 32 to 96 GB changed nothing for these models"
+  },
+  "E": {
+   "label": "8 GB GPU (Nvidia), 32 GB RAM",
+   "short": "8 GB Nvidia",
+   "gpu": "nvidia",
+   "vram": "8",
+   "note": "emulated on the 12 GB card with 4.9 GB held: a real 8 GB card is likely slower"
+  },
+  "F32": {
+   "label": "no GPU, 8 CPU cores, 32 GB RAM",
+   "short": "CPU, 32 GB",
+   "gpu": "none",
+   "vram": "none",
+   "note": "this machine's cores capped at 8: real laptop cores are likely 1.2-2x slower"
+  },
+  "F16": {
+   "label": "no GPU, 8 CPU cores, 16 GB RAM",
+   "short": "CPU, 16 GB",
+   "gpu": "none",
+   "vram": "none",
+   "note": "as F32 with 16 GB"
+  }
+ },
+ "setups": [
+  {
+   "id": "gemma4mtp:31b-n3-text",
+   "label": "Gemma 4 31B + MTP",
+   "mtp": true,
+   "parent": "gemma4:31b-it-qat",
+   "draft": "gemma4-31b-assistant-f16.gguf",
+   "modelfile": "Modelfile.31b.n3-text",
+   "download_gb": 19.8,
+   "quality": {
+    "pct": 117.3,
+    "ci": [
+     108.2,
+     124.7
+    ],
+    "messages": 135.6,
+    "watchlist": 99.0,
+    "source": "development study (not published)"
+   },
+   "gates": {
+    "severe": "pass",
+    "checklist": 0.983
+   },
+   "default_for": [
+    "A",
+    "E"
+   ],
+   "min_ram": "32",
+   "tiers": {
+    "A": {
+     "keepup": 40,
+     "keepup_plus": false,
+     "keepup_source": "development study (not published)",
+     "person_s": 6.32,
+     "a": 1.278,
+     "b": 1.4308,
+     "window12_s": 18.4,
+     "run": "q31t_mtp3:QA",
+     "num_gpu": 30,
+     "num_gpu_known": true,
+     "reread_all": 20,
+     "reread_most": 40,
+     "reread_source": "development study (not published)"
+    },
+    "E": {
+     "keepup": 20,
+     "keepup_plus": false,
+     "keepup_source": "development study (not published)",
+     "person_s": 8.55,
+     "a": 1.686,
+     "b": 1.9347,
+     "window12_s": 24.9,
+     "run": "q31t_mtp3_e:E",
+     "num_gpu": 15,
+     "num_gpu_known": true,
+     "reread_all": 15,
+     "reread_most": 25,
+     "reread_source": "development study (not published)"
+    }
+   },
+   "vram_fit": {
+    "layers": 61,
+    "weights_gib": 16.439,
+    "points": [
+     [
+      6.755,
+      15,
+      16
+     ],
+     [
+      11.655,
+      30,
+      33
+     ]
+    ],
+    "source": "development study (not published)"
+   }
+  },
+  {
+   "id": "gemma4:31b-it-qat",
+   "label": "Gemma 4 31B",
+   "mtp": false,
+   "download_gb": 18.9,
+   "quality": {
+    "pct": 117.4,
+    "ci": [
+     110.0,
+     124.3
+    ],
+    "messages": 133.2,
+    "watchlist": 101.5,
+    "source": "development study (not published)"
+   },
+   "gates": {
+    "severe": "pass",
+    "checklist": 0.983
+   },
+   "note": "plain build: same quality as its MTP twin, 2.5x slower",
+   "min_ram": "32",
+   "tiers": {
+    "A": {
+     "keepup": 10,
+     "keepup_plus": false,
+     "keepup_source": "development study (not published)",
+     "person_s": 12.51,
+     "a": 1.376,
+     "b": 4.7252,
+     "window12_s": 58.1,
+     "run": "gemma31_final:A",
+     "num_gpu": null,
+     "num_gpu_known": true,
+     "reread_all": 5,
+     "reread_most": 10,
+     "reread_source": "development study (not published)"
+    }
+   }
+  },
+  {
+   "id": "gemma4mtp:12b-n2",
+   "label": "Gemma 4 12B + MTP",
+   "mtp": true,
+   "parent": "gemma4:12b-it-qat",
+   "draft": "gemma4-12b-assistant-f16.gguf",
+   "modelfile": "Modelfile.12b.n2",
+   "download_gb": 8.0,
+   "quality": {
+    "pct": 106.5,
+    "ci": [
+     99.3,
+     112.8
+    ],
+    "source": "development study (not published)"
+   },
+   "gates": {
+    "severe": "pass",
+    "checklist": 0.99
+   },
+   "default_for": [
+    "F32"
+   ],
+   "min_ram": "32",
+   "tiers": {
+    "A": {
+     "keepup": 150,
+     "keepup_plus": true,
+     "keepup_source": "development study (not published)",
+     "person_s": 1.02,
+     "a": 0.227,
+     "b": 0.201,
+     "window12_s": 2.6,
+     "run": "gemma12_final_mtp2:A",
+     "num_gpu": null,
+     "num_gpu_known": true,
+     "reread_all": 200,
+     "reread_most": 300,
+     "reread_source": "development study (not published)"
+    },
+    "E": {
+     "keepup": 150,
+     "keepup_plus": true,
+     "keepup_source": "development study (not published)",
+     "person_s": 2.15,
+     "a": 0.332,
+     "b": 0.4979,
+     "window12_s": 6.3,
+     "run": "gemma12_final_mtp2_e:E",
+     "num_gpu": 36,
+     "num_gpu_known": true,
+     "reread_all": 75,
+     "reread_most": 100,
+     "reread_source": "development study (not published)"
+    },
+    "F32": {
+     "keepup": 10,
+     "keepup_plus": false,
+     "keepup_source": "development study (not published)",
+     "person_s": 25.18,
+     "a": 5.101,
+     "b": 2.2075,
+     "window12_s": 31.6,
+     "run": "gemma12_final_mtp2:F32",
+     "num_gpu": null,
+     "num_gpu_known": false,
+     "reread_all": 5,
+     "reread_most": 15,
+     "reread_source": "development study (not published)"
+    }
+   },
+   "vram_fit": {
+    "layers": 49,
+    "weights_gib": 6.66,
+    "points": [
+     [
+      6.755,
+      36,
+      38
+     ],
+     [
+      11.655,
+      null
+     ]
+    ],
+    "source": "development study (not published)"
+   }
+  },
+  {
+   "id": "gemma4:12b-it-qat",
+   "label": "Gemma 4 12B",
+   "mtp": false,
+   "download_gb": 7.2,
+   "quality": {
+    "pct": 106.8,
+    "ci": [
+     97.8,
+     114.2
+    ],
+    "messages": 115.9,
+    "watchlist": 97.7,
+    "source": "development study (not published)"
+   },
+   "gates": {
+    "severe": "pass",
+    "checklist": 0.992
+   },
+   "min_ram": "32",
+   "tiers": {
+    "A": {
+     "keepup": 150,
+     "keepup_plus": true,
+     "keepup_source": "development study (not published)",
+     "person_s": 1.39,
+     "a": 0.189,
+     "b": 0.4344,
+     "window12_s": 5.4,
+     "run": "gemma12_final:A",
+     "num_gpu": null,
+     "num_gpu_known": true,
+     "reread_all": 100,
+     "reread_most": 150,
+     "reread_source": "development study (not published)"
+    },
+    "E": {
+     "keepup": 75,
+     "keepup_plus": false,
+     "keepup_source": "development study (not published)",
+     "person_s": 3.44,
+     "a": 0.351,
+     "b": 1.1542,
+     "window12_s": 14.2,
+     "run": "gemma12_final:E",
+     "num_gpu": null,
+     "num_gpu_known": true,
+     "reread_all": 35,
+     "reread_most": 50,
+     "reread_source": "development study (not published)"
+    },
+    "F32": {
+     "keepup": 10,
+     "keepup_plus": false,
+     "keepup_source": "development study (not published)",
+     "person_s": 28.92,
+     "a": 4.86,
+     "b": 3.6506,
+     "window12_s": 48.7,
+     "run": "gemma12_final:F32",
+     "num_gpu": null,
+     "num_gpu_known": false,
+     "reread_all": 5,
+     "reread_most": 10,
+     "reread_source": "development study (not published)"
+    }
+   }
+  },
+  {
+   "id": "qwen3.6:35b-a3b-q4_K_M",
+   "label": "Qwen 3.6 35B-A3B",
+   "mtp": false,
+   "download_gb": 23.9,
+   "quality": {
+    "pct": 101.5,
+    "ci": [
+     97.4,
+     105.8
+    ],
+    "source": "development study (not published)"
+   },
+   "gates": {
+    "severe": "pass",
+    "checklist": null
+   },
+   "min_ram": "32",
+   "tiers": {
+    "A": {
+     "keepup": 150,
+     "keepup_plus": true,
+     "keepup_source": "development study (not published)",
+     "person_s": 1.88,
+     "a": 0.67,
+     "b": 0.6395,
+     "window12_s": 8.3,
+     "run": "qwen36q4_final:A",
+     "num_gpu": null,
+     "num_gpu_known": true,
+     "reread_all": 60,
+     "reread_most": 100,
+     "reread_source": "development study (not published)"
+    },
+    "E": {
+     "keepup": 150,
+     "keepup_plus": true,
+     "keepup_source": "development study (not published)",
+     "person_s": 2.31,
+     "a": 0.779,
+     "b": 0.7742,
+     "window12_s": 10.1,
+     "run": "qwen36q4_final:E",
+     "num_gpu": null,
+     "num_gpu_known": true,
+     "reread_all": 50,
+     "reread_most": 75,
+     "reread_source": "development study (not published)"
+    },
+    "F32": {
+     "keepup": 20,
+     "keepup_plus": false,
+     "keepup_source": "development study (not published)",
+     "person_s": 16.86,
+     "a": 2.715,
+     "b": 2.036,
+     "window12_s": 27.1,
+     "run": "qwen36q4_final:F32",
+     "num_gpu": null,
+     "num_gpu_known": false,
+     "reread_all": 10,
+     "reread_most": 20,
+     "reread_source": "development study (not published)"
+    }
+   }
+  },
+  {
+   "id": "gpt-oss-safeguard:20b",
+   "label": "gpt-oss-safeguard 20B",
+   "mtp": false,
+   "download_gb": 13.8,
+   "quality": {
+    "pct": 100.0,
+    "ci": [
+     100.0,
+     100.0
+    ],
+    "source": "development study (not published)"
+   },
+   "gates": {
+    "severe": "baseline",
+    "checklist": 0.996
+   },
+   "min_ram": "32",
+   "tiers": {
+    "A": {
+     "keepup": 75,
+     "keepup_plus": false,
+     "keepup_source": "development study (not published)",
+     "person_s": 4.03,
+     "a": 0.585,
+     "b": 0.5261,
+     "window12_s": 6.9,
+     "run": "base_live:A",
+     "num_gpu": null,
+     "num_gpu_known": true,
+     "reread_all": 60,
+     "reread_most": 75,
+     "reread_source": "development study (not published)"
+    },
+    "E": {
+     "keepup": 40,
+     "keepup_plus": false,
+     "keepup_source": "development study (not published)",
+     "person_s": 6.81,
+     "a": 1.124,
+     "b": 0.94,
+     "window12_s": 12.4,
+     "run": "base_live:E",
+     "num_gpu": null,
+     "num_gpu_known": true,
+     "reread_all": 30,
+     "reread_most": 50,
+     "reread_source": "development study (not published)"
+    },
+    "F32": {
+     "keepup": 10,
+     "keepup_plus": false,
+     "keepup_source": "development study (not published)",
+     "person_s": 21.46,
+     "a": 2.869,
+     "b": 3.0232,
+     "window12_s": 39.1,
+     "run": "base_live:F32",
+     "num_gpu": null,
+     "num_gpu_known": false,
+     "reread_all": 5,
+     "reread_most": 15,
+     "reread_source": "development study (not published)"
+    }
+   }
+  },
+  {
+   "id": "gemma4mtp:e4b-n4",
+   "label": "Gemma 4 E4B + MTP",
+   "mtp": true,
+   "parent": "gemma4:e4b-it-qat",
+   "draft": "gemma4-e4b-assistant-f16.gguf",
+   "modelfile": "Modelfile.e4b.n4",
+   "download_gb": 6.3,
+   "quality": {
+    "pct": 97.3,
+    "ci": [
+     91.3,
+     102.4
+    ],
+    "source": "development study (not published)"
+   },
+   "gates": {
+    "severe": "pass",
+    "checklist": null
+   },
+   "default_for": [
+    "F16"
+   ],
+   "min_ram": "16",
+   "tiers": {
+    "F16": {
+     "keepup": 20,
+     "keepup_plus": false,
+     "keepup_source": "development study (not published)",
+     "person_s": 8.03,
+     "a": 11.524,
+     "b": 3.4292,
+     "window12_s": 52.7,
+     "run": "gemmae4b_final_mtp4:F16",
+     "num_gpu": null,
+     "num_gpu_known": false,
+     "reread_all": 5,
+     "reread_most": 15,
+     "reread_source": "development study (not published)"
+    },
+    "F32": {
+     "keepup": 20,
+     "keepup_plus": false,
+     "keepup_source": "development study (not published)",
+     "person_s": 7.95,
+     "a": 13.556,
+     "b": 3.0371,
+     "window12_s": 50.0,
+     "run": "gemmae4b_final_mtp4:F32",
+     "num_gpu": null,
+     "num_gpu_known": false,
+     "reread_all": 5,
+     "reread_most": 15,
+     "reread_source": "development study (not published)"
+    },
+    "E": {
+     "keepup": 150,
+     "keepup_plus": true,
+     "keepup_source": "development study (not published)",
+     "person_s": 0.36,
+     "a": 1.024,
+     "b": 0.3275,
+     "window12_s": 5.0,
+     "run": "gemmae4b_final_mtp4:E",
+     "num_gpu": null,
+     "num_gpu_known": true,
+     "reread_all": 100,
+     "reread_most": 200,
+     "reread_source": "development study (not published)"
+    }
+   },
+   "vram_fit": {
+    "layers": null,
+    "weights_gib": 5.724,
+    "points": [
+     [
+      6.755,
+      null
+     ]
+    ],
+    "source": "development study (not published)"
+   }
+  },
+  {
+   "id": "gemma4:e4b-it-qat",
+   "label": "Gemma 4 E4B",
+   "mtp": false,
+   "download_gb": 6.1,
+   "quality": {
+    "pct": 99.5,
+    "ci": [
+     92.6,
+     105.7
+    ],
+    "messages": 107.2,
+    "watchlist": 91.8,
+    "source": "development study (not published)"
+   },
+   "gates": {
+    "severe": "pass",
+    "checklist": 0.996
+   },
+   "min_ram": "16",
+   "tiers": {
+    "F16": {
+     "keepup": 10,
+     "keepup_plus": false,
+     "keepup_source": "development study (not published)",
+     "person_s": 9.64,
+     "a": 20.892,
+     "b": 6.3279,
+     "window12_s": 96.8,
+     "run": "gemmae4b_final:F16",
+     "num_gpu": null,
+     "num_gpu_known": false,
+     "reread_all": 0,
+     "reread_most": 5,
+     "reread_source": "development study (not published)"
+    },
+    "F32": {
+     "keepup": 10,
+     "keepup_plus": false,
+     "keepup_source": "development study (not published)",
+     "person_s": 9.92,
+     "a": 20.711,
+     "b": 6.6256,
+     "window12_s": 100.2,
+     "run": "gemmae4b_final:F32",
+     "num_gpu": null,
+     "num_gpu_known": false,
+     "reread_all": 0,
+     "reread_most": 5,
+     "reread_source": "development study (not published)"
+    },
+    "E": {
+     "keepup": 150,
+     "keepup_plus": true,
+     "keepup_source": "development study (not published)",
+     "person_s": 0.55,
+     "a": 2.262,
+     "b": 0.7196,
+     "window12_s": 10.9,
+     "run": "gemmae4b_final:E",
+     "num_gpu": null,
+     "num_gpu_known": true,
+     "reread_all": 50,
+     "reread_most": 75,
+     "reread_source": "development study (not published)"
+    }
+   }
+  }
+ ],
+ "replaced": {
+  "gemma4mtp:31b-n3": {
+   "by": "gemma4mtp:31b-n3-text",
+   "since": "2026-11-09",
+   "why": "the same weights, drafter and prompts without the vision projector the tool never uses: 4 more GPU layers on 12 GB, person reads in 90% of the time",
+   "source": "development study (not published)"
+  }
+ },
+ "vram_overhead": {
+  "ratio": 1.547686237553527,
+  "source": "development study (not published)"
+ },
+ "hybrids": [
+  {
+   "live": "gemma4mtp:12b-n2",
+   "reviewer": "gemma4mtp:31b-n3-text",
+   "a": [
+    109.1,
+    98.6,
+    117.6
+   ],
+   "b": [
+    114.8,
+    104.8,
+    123.1
+   ],
+   "gate_b": "pass",
+   "tiers": [
+    "A",
+    "E"
+   ],
+   "live_reread": {
+    "A": {
+     "all": 60,
+     "most": 75
+    },
+    "E": {
+     "all": 40,
+     "most": 50
+    },
+    "source": "development study (not published)"
+   }
+  },
+  {
+   "live": "gemma4:12b-it-qat",
+   "reviewer": "gemma4mtp:31b-n3-text",
+   "a": [
+    109.4,
+    99.0,
+    117.8
+   ],
+   "b": [
+    114.5,
+    104.6,
+    122.8
+   ],
+   "gate_b": "pass",
+   "tiers": [
+    "A",
+    "E"
+   ]
+  },
+  {
+   "live": "qwen3.6:35b-a3b-q4_K_M",
+   "reviewer": "gemma4mtp:31b-n3-text",
+   "a": [
+    104.9,
+    100.2,
+    108.3
+   ],
+   "b": [
+    110.2,
+    104.0,
+    115.2
+   ],
+   "gate_b": "pass",
+   "tiers": [
+    "A",
+    "E"
+   ]
+  }
+ ],
+ "swap": {
+  "unload_s": [
+   0.3,
+   1.0
+  ],
+  "load_s": [
+   9,
+   23
+  ],
+  "first_answer_s": [
+   12,
+   16
+  ],
+  "live_back_s": [
+   8,
+   13
+  ],
+  "source": "development study (not published)"
+ },
+ "review_load": {
+  "a": {
+   "chatters_per_1000": 4.2,
+   "lines_per_chatter": 23.23809523809524
+  },
+  "b": {
+   "chatters_per_1000": 19.7,
+   "lines_per_chatter": 11.715736040609139
+  },
+  "source": "development study (not published)"
+ },
+ "no_ai": {
+  "pct": 70.8,
+  "ci": [
+   61.3,
+   77.4
+  ],
+  "gate": "fails the real-chat severe gate (lost 4, gained 1)",
+  "source": "development study (not published)"
+ },
+ "read_rate_per_msg": 0.025668856829960708,
+ "hybrid_effective": {
+  "pair": [
+   "gemma4mtp:12b-n2",
+   "gemma4mtp:31b-n3-text"
+  ],
+  "rows": [
+   {
+    "rate": 20,
+    "interval_min": 10,
+    "swap": "cached",
+    "chatters_per_press": 3.9,
+    "reviewed_per_press": 3.9,
+    "minutes_per_press": 2.3,
+    "paused_share": 0.23,
+    "coverage": 1.0,
+    "live_p95_lag_hi_min": 1.9,
+    "likely_over_no_ai": 62,
+    "capped": false
+   },
+   {
+    "rate": 40,
+    "interval_min": 10,
+    "swap": "cached",
+    "chatters_per_press": 7.9,
+    "reviewed_per_press": 7.9,
+    "minutes_per_press": 4.0,
+    "paused_share": 0.401,
+    "coverage": 1.0,
+    "live_p95_lag_hi_min": 3.7,
+    "likely_over_no_ai": 62,
+    "capped": false
+   },
+   {
+    "rate": 75,
+    "interval_min": 10,
+    "swap": "cached",
+    "chatters_per_press": 14.8,
+    "reviewed_per_press": 14.8,
+    "minutes_per_press": 7.0,
+    "paused_share": 0.702,
+    "coverage": 1.0,
+    "live_p95_lag_hi_min": 7.0,
+    "likely_over_no_ai": 62,
+    "capped": false
+   },
+   {
+    "rate": 100,
+    "interval_min": 10,
+    "swap": "cached",
+    "chatters_per_press": 19.7,
+    "reviewed_per_press": 15.2,
+    "minutes_per_press": 7.2,
+    "paused_share": 0.722,
+    "coverage": 0.773,
+    "live_p95_lag_hi_min": 9.3,
+    "likely_over_no_ai": 59,
+    "capped": true
+   },
+   {
+    "rate": 150,
+    "interval_min": 10,
+    "swap": "cached",
+    "chatters_per_press": 29.5,
+    "reviewed_per_press": 12.5,
+    "minutes_per_press": 6.0,
+    "paused_share": 0.603,
+    "coverage": 0.423,
+    "live_p95_lag_hi_min": 9.1,
+    "likely_over_no_ai": 55,
+    "capped": true
+   },
+   {
+    "rate": 200,
+    "interval_min": 10,
+    "swap": "cached",
+    "chatters_per_press": 39.4,
+    "reviewed_per_press": 9.6,
+    "minutes_per_press": 4.8,
+    "paused_share": 0.478,
+    "coverage": 0.244,
+    "live_p95_lag_hi_min": 9.1,
+    "likely_over_no_ai": 53,
+    "capped": true
+   },
+   {
+    "rate": 300,
+    "interval_min": 10,
+    "swap": "cached",
+    "chatters_per_press": 59.1,
+    "reviewed_per_press": 4.6,
+    "minutes_per_press": 2.6,
+    "paused_share": 0.257,
+    "coverage": 0.077,
+    "live_p95_lag_hi_min": 8.9,
+    "likely_over_no_ai": 51,
+    "capped": true
+   },
+   {
+    "rate": 20,
+    "interval_min": 30,
+    "swap": "cached",
+    "chatters_per_press": 11.8,
+    "reviewed_per_press": 11.8,
+    "minutes_per_press": 5.7,
+    "paused_share": 0.191,
+    "coverage": 1.0,
+    "live_p95_lag_hi_min": 4.5,
+    "likely_over_no_ai": 62,
+    "capped": false
+   },
+   {
+    "rate": 40,
+    "interval_min": 30,
+    "swap": "cached",
+    "chatters_per_press": 23.6,
+    "reviewed_per_press": 23.6,
+    "minutes_per_press": 10.9,
+    "paused_share": 0.363,
+    "coverage": 1.0,
+    "live_p95_lag_hi_min": 9.7,
+    "likely_over_no_ai": 62,
+    "capped": false
+   },
+   {
+    "rate": 75,
+    "interval_min": 30,
+    "swap": "cached",
+    "chatters_per_press": 44.3,
+    "reviewed_per_press": 23.5,
+    "minutes_per_press": 10.8,
+    "paused_share": 0.361,
+    "coverage": 0.531,
+    "live_p95_lag_hi_min": 10.0,
+    "likely_over_no_ai": 57,
+    "capped": true
+   },
+   {
+    "rate": 100,
+    "interval_min": 30,
+    "swap": "cached",
+    "chatters_per_press": 59.1,
+    "reviewed_per_press": 22.6,
+    "minutes_per_press": 10.4,
+    "paused_share": 0.348,
+    "coverage": 0.383,
+    "live_p95_lag_hi_min": 9.8,
+    "likely_over_no_ai": 55,
+    "capped": true
+   },
+   {
+    "rate": 150,
+    "interval_min": 30,
+    "swap": "cached",
+    "chatters_per_press": 88.6,
+    "reviewed_per_press": 21.6,
+    "minutes_per_press": 10.0,
+    "paused_share": 0.334,
+    "coverage": 0.244,
+    "live_p95_lag_hi_min": 9.8,
+    "likely_over_no_ai": 53,
+    "capped": true
+   },
+   {
+    "rate": 200,
+    "interval_min": 30,
+    "swap": "cached",
+    "chatters_per_press": 118.2,
+    "reviewed_per_press": 19.0,
+    "minutes_per_press": 8.9,
+    "paused_share": 0.295,
+    "coverage": 0.161,
+    "live_p95_lag_hi_min": 10.0,
+    "likely_over_no_ai": 52,
+    "capped": true
+   },
+   {
+    "rate": 300,
+    "interval_min": 30,
+    "swap": "cached",
+    "chatters_per_press": 177.3,
+    "reviewed_per_press": 11.1,
+    "minutes_per_press": 5.4,
+    "paused_share": 0.18,
+    "coverage": 0.063,
+    "live_p95_lag_hi_min": 9.9,
+    "likely_over_no_ai": 51,
+    "capped": true
+   }
+  ],
+  "per_chatter_s": 26.1,
+  "swaps_s": {
+   "cached": 35.0
+  },
+  "source": "development study (not published)"
+ }
+}
